@@ -152,10 +152,9 @@ void LyraTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* t
 
   int maxTitleWidth =
       title != nullptr ? getTextWidthForRole(renderer, UI_12_FONT_ID, titleRole, title, EpdFontFamily::BOLD) : 0;
-  int maxSubtitleWidth = subtitle != nullptr
-                             ? getTextWidthForRole(renderer, SMALL_FONT_ID, subtitleRole, subtitle,
-                                                   EpdFontFamily::REGULAR)
-                             : 0;
+  int maxSubtitleWidth =
+      subtitle != nullptr ? getTextWidthForRole(renderer, SMALL_FONT_ID, subtitleRole, subtitle, EpdFontFamily::REGULAR)
+                          : 0;
 
   // Available space is the distance between the side paddings, and a with side padding between title and subtitle.
   const int availableSpace = rect.width - LyraMetrics::values.contentSidePadding * 3;
@@ -217,21 +216,22 @@ void LyraTheme::drawTabBar(const GfxRenderer& renderer, Rect rect, const std::ve
                            bool selected) const {
   int currentX = rect.x + LyraMetrics::values.contentSidePadding;
 
+  size_t itemWidth = rect.width / (tabs.size() + 1);
+  itemWidth -= itemWidth * 0.1;  // Do not use the complete width.
+
   if (selected) {
     renderer.fillRectDither(rect.x, rect.y, rect.width, rect.height, Color::LightGray);
   }
 
   for (const auto& tab : tabs) {
-    const int textWidth = renderer.getTextWidth(UI_10_FONT_ID, tab.label, EpdFontFamily::REGULAR);
-
     if (tab.selected) {
       if (selected) {
-        renderer.fillRoundedRect(currentX, rect.y + 1, textWidth + 2 * hPaddingInSelection, rect.height - 4,
+        renderer.fillRoundedRect(currentX, rect.y + 1, itemWidth + 2 * hPaddingInSelection, rect.height - 4,
                                  cornerRadius, Color::Black);
       } else {
-        renderer.fillRectDither(currentX, rect.y, textWidth + 2 * hPaddingInSelection, rect.height - 3,
+        renderer.fillRectDither(currentX, rect.y, itemWidth + 2 * hPaddingInSelection, rect.height - 3,
                                 Color::LightGray);
-        renderer.drawLine(currentX, rect.y + rect.height - 3, currentX + textWidth + 2 * hPaddingInSelection,
+        renderer.drawLine(currentX, rect.y + rect.height - 3, currentX + itemWidth + 2 * hPaddingInSelection,
                           rect.y + rect.height - 3, 2, true);
       }
     }
@@ -239,7 +239,7 @@ void LyraTheme::drawTabBar(const GfxRenderer& renderer, Rect rect, const std::ve
     renderer.drawText(UI_10_FONT_ID, currentX + hPaddingInSelection, rect.y + 6, tab.label, !(tab.selected && selected),
                       EpdFontFamily::REGULAR);
 
-    currentX += textWidth + LyraMetrics::values.tabSpacing + 2 * hPaddingInSelection;
+    currentX += itemWidth + LyraMetrics::values.tabSpacing + 2 * hPaddingInSelection;
   }
 
   renderer.drawLine(rect.x, rect.y + rect.height - 1, rect.x + rect.width - 1, rect.y + rect.height - 1, true);
@@ -520,8 +520,7 @@ void LyraTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
     auto titleLines = wrappedTextForRole(renderer, UI_12_FONT_ID, TextRole::UserContent, book.title.c_str(), textWidth,
                                          3, EpdFontFamily::BOLD);
 
-    auto author =
-        truncatedTextForRole(renderer, UI_10_FONT_ID, TextRole::UserContent, book.author.c_str(), textWidth);
+    auto author = truncatedTextForRole(renderer, UI_10_FONT_ID, TextRole::UserContent, book.author.c_str(), textWidth);
     const int titleLineHeight = getLineHeightForRole(renderer, UI_12_FONT_ID, TextRole::UserContent);
     const int titleBlockHeight = titleLineHeight * static_cast<int>(titleLines.size());
     const int authorLineHeight = getLineHeightForRole(renderer, UI_10_FONT_ID, TextRole::UserContent);
