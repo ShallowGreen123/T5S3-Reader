@@ -473,19 +473,18 @@ void EpubReaderActivity::openReaderMenu() {
     bookProgress = epub->calculateProgress(currentSpineIndex, chapterProgress) * 100.0f;
   }
   const int bookProgressPercent = clampPercent(static_cast<int>(bookProgress + 0.5f));
-  startActivityForResult(
-      std::make_unique<EpubReaderMenuActivity>(renderer, mappedInput, epub->getTitle(), currentPage, totalPages,
-                                               bookProgressPercent, SETTINGS.orientation,
-                                               !currentPageFootnotes.empty()),
-      [this](const ActivityResult& result) {
-        // Always apply orientation change even if the menu was cancelled
-        const auto& menu = std::get<MenuResult>(result.data);
-        applyOrientation(menu.orientation);
-        toggleAutoPageTurn(menu.pageTurnOption);
-        if (!result.isCancelled) {
-          onReaderMenuConfirm(static_cast<EpubReaderMenuActivity::MenuAction>(menu.action));
-        }
-      });
+  startActivityForResult(std::make_unique<EpubReaderMenuActivity>(renderer, mappedInput, epub->getTitle(), currentPage,
+                                                                  totalPages, bookProgressPercent, SETTINGS.orientation,
+                                                                  !currentPageFootnotes.empty()),
+                         [this](const ActivityResult& result) {
+                           // Always apply orientation change even if the menu was cancelled
+                           const auto& menu = std::get<MenuResult>(result.data);
+                           applyOrientation(menu.orientation);
+                           toggleAutoPageTurn(menu.pageTurnOption);
+                           if (!result.isCancelled) {
+                             onReaderMenuConfirm(static_cast<EpubReaderMenuActivity::MenuAction>(menu.action));
+                           }
+                         });
 }
 
 void EpubReaderActivity::applyOrientation(const uint8_t orientation) {
@@ -891,9 +890,9 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   } else {
     ReaderUtils::displayWithRefreshCycle(renderer, pagesUntilFullRefresh);
   }
-  const auto tDisplay = millis();
 
-  if (SETTINGS.textAntiAliasing) {
+  const auto tDisplay = millis();
+  if (SETTINGS.textAntiAliasing && !page->hasImages()) {
     // Save bw buffer to reset buffer state after grayscale data sync.
     renderer.storeBwBuffer();
     const auto tBwStore = millis();
