@@ -500,7 +500,8 @@ void TxtReaderActivity::buildStatusBarTitle(std::string& title, TextRole& titleR
   }
 
   title = txt->getTitle();
-  titleRole = title.empty() ? TextRole::System : TextRole::UserContent;
+  // Keep the built-in small font (System role) so the title matches the page/battery text; using
+  // UserContent would swap in the SD reader font, whose smallest 12pt size towers over the 8pt bar.
 }
 
 void TxtReaderActivity::renderStatusBar() const {

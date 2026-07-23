@@ -1089,14 +1089,16 @@ void EpubReaderActivity::buildStatusBarTitle(std::string& title, TextRole& title
     if (tocIndex != -1) {
       const auto tocItem = epub->getTocItem(tocIndex);
       title = tocItem.title;
-      titleRole = tocItem.title.empty() ? TextRole::System : TextRole::UserContent;
     }
+    // Keep the built-in small font (System role) so the title matches the page/battery text in the
+    // status bar. Don't promote to UserContent here: that swaps in the SD reader font, whose
+    // smallest size (12pt) towers over the 8pt status text.
     return;
   }
 
   if (SETTINGS.statusBarTitle == CrossPointSettings::STATUS_BAR_TITLE::BOOK_TITLE) {
     title = epub->getTitle();
-    titleRole = title.empty() ? TextRole::System : TextRole::UserContent;
+    // System role (built-in small font) to match the rest of the status bar; see note above.
   }
 }
 
