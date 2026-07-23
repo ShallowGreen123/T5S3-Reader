@@ -262,6 +262,9 @@ void SettingsActivity::toggleCurrentSetting() {
 
   if (setting.valuePtr == &CrossPointSettings::backlightLevel) {
     BoardT5S3::setBacklightLevel(SETTINGS.backlightLevel);
+  } else if (setting.valuePtr == &CrossPointSettings::flipUi) {
+    // Apply the 180° flip immediately (forces a full refresh) so the change is visible now.
+    display.setFlipOutput(SETTINGS.flipUi != 0);
   } else if (setting.valuePtr == &CrossPointSettings::timeZone) {
     halClock.configure(SETTINGS.timeZone, SETTINGS.rtcStoresUtc != 0, SETTINGS.rtcVariantHint,
                        SETTINGS.rtcReferenceEpoch);

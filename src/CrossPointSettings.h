@@ -260,6 +260,8 @@ class CrossPointSettings {
   uint8_t showHiddenFiles = 0;
   // Remove a book from the recent list once reading reaches the end.
   uint8_t autoRemoveFinishedRecentBooks = 0;
+  // Flip the entire UI 180° (upside down) and swap the two side buttons' up/down + page-turn roles.
+  uint8_t flipUi = 0;
   // Image rendering mode in EPUB reader
   uint8_t imageRendering = IMAGES_DISPLAY;
   // Tilt-based page turning. Hidden when the active board has no tilt sensor.
