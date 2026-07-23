@@ -42,6 +42,8 @@ void XtcReaderActivity::onEnter() {
 
   // Save current XTC as last opened book and add to recent books
   APP_STATE.openEpubPath = xtc->getPath();
+  // Book loaded successfully: clear the crash-loop guard so the next boot can resume this book.
+  APP_STATE.readerActivityLoadCount = 0;
   APP_STATE.saveToFile();
   RECENT_BOOKS.addBook(xtc->getPath(), xtc->getTitle(), xtc->getAuthor(), xtc->getThumbBmpPath());
 
