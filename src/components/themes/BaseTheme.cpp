@@ -901,7 +901,7 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
                                    &orientedMarginLeft);
   const bool showClock =
-      halClock.isAvailable() &&
+      !SETTINGS.hideClock && halClock.isAvailable() &&
       SETTINGS.statusBarClock != CrossPointSettings::STATUS_BAR_CLOCK_MODE::STATUS_BAR_CLOCK_HIDE;
   const bool hasStatusTextLine =
       SETTINGS.statusBarBookProgressPercentage || SETTINGS.statusBarChapterPageCount || SETTINGS.statusBarBattery ||

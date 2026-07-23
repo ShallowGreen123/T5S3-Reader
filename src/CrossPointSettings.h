@@ -202,6 +202,8 @@ class CrossPointSettings {
   uint8_t statusBarTitle = CHAPTER_TITLE;
   uint8_t statusBarBattery = 1;
   uint8_t statusBarClock = STATUS_BAR_CLOCK_HIDE;
+  // When 1, hide all clocks everywhere (reader status bar + home/system header)
+  uint8_t hideClock = 0;
   // Text rendering settings
   uint8_t extraParagraphSpacing = 1;
   uint8_t textAntiAliasing = 1;
