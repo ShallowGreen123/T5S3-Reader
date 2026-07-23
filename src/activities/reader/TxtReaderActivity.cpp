@@ -59,6 +59,8 @@ void TxtReaderActivity::onEnter() {
   auto filePath = txt->getPath();
   auto fileName = filePath.substr(filePath.rfind('/') + 1);
   APP_STATE.openEpubPath = filePath;
+  // Book loaded successfully: clear the crash-loop guard so the next boot can resume this book.
+  APP_STATE.readerActivityLoadCount = 0;
   APP_STATE.saveToFile();
   RECENT_BOOKS.addBook(filePath, fileName, "", "");
 

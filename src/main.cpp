@@ -316,7 +316,7 @@ HalDisplay::RefreshMode readerResumeRefreshMode() {
 }
 
 bool shouldResumeReaderOnBoot() {
-  return !APP_STATE.openEpubPath.empty() && APP_STATE.lastSleepFromReader &&
+  return SETTINGS.resumeReaderOnBoot && !APP_STATE.openEpubPath.empty() && APP_STATE.lastSleepFromReader &&
          !mappedInputManager.isPressed(MappedInputManager::Button::Back) && APP_STATE.readerActivityLoadCount == 0;
 }
 
