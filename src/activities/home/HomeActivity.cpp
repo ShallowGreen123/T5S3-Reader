@@ -310,7 +310,8 @@ void HomeActivity::render(RenderLock&&) {
 
   char homeClockLabel[6] = {};
   const char* headerClockLabel = nullptr;
-  if (halClock.isAvailable() && halClock.formatTime(homeClockLabel, sizeof(homeClockLabel))) {
+  if (!SETTINGS.hideClock && halClock.isAvailable() &&
+      halClock.formatTime(homeClockLabel, sizeof(homeClockLabel))) {
     headerClockLabel = homeClockLabel;
   }
 
