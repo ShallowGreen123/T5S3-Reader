@@ -138,6 +138,8 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
                           {StrId::STR_LONG_PRESS_BEHAVIOR_OFF, StrId::STR_LONG_PRESS_BEHAVIOR_SKIP,
                            StrId::STR_LONG_PRESS_BEHAVIOR_ORIENTATION},
                           "longPressButtonBehavior", StrId::STR_CAT_CONTROLS),
+        SettingInfo::Toggle(StrId::STR_DOUBLE_CLICK_HOME, &CrossPointSettings::doubleClickHomeMenu,
+                            "doubleClickHomeMenu", StrId::STR_CAT_CONTROLS),
 
         // --- System ---
         SettingInfo::Enum(StrId::STR_TIME_TO_SLEEP, &CrossPointSettings::sleepTimeout,
@@ -153,6 +155,8 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
                             StrId::STR_CAT_SYSTEM),
         SettingInfo::Toggle(StrId::STR_AUTO_REMOVE_FINISHED_BOOKS,
                             &CrossPointSettings::autoRemoveFinishedRecentBooks, "autoRemoveFinishedRecentBooks",
+                            StrId::STR_CAT_SYSTEM),
+        SettingInfo::Toggle(StrId::STR_CONFIRM_SHUTDOWN, &CrossPointSettings::confirmShutdown, "confirmShutdown",
                             StrId::STR_CAT_SYSTEM),
 
         // --- KOReader Sync (web-only, uses KOReaderCredentialStore) ---

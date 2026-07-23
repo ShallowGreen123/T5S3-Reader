@@ -2,6 +2,8 @@
 
 #include <HalPowerManager.h>
 
+#include "CrossPointSettings.h"
+#include "GlobalMenuActivity.h"
 #include "OpdsServerStore.h"
 #include "boot_sleep/BootActivity.h"
 #include "boot_sleep/SleepActivity.h"
@@ -62,9 +64,49 @@ void ActivityManager::loop() {
   if (currentActivity) {
     // Note: do not hold a lock here, the loop() method must be responsible for acquire one if needed
     bool activityHandled = false;
-    if (mappedInput.wasTouchHomeButtonPressed() && currentActivity->supportsTouchHomeButton() &&
-        currentActivity->name != "Home") {
-      currentActivity->onGoHome();
+    const bool globalMenuAllowed = currentActivity->supportsGlobalMenu();
+
+    // Global gesture: a drag down from the very top edge opens the global menu overlay.
+    if (globalMenuAllowed) {
+      MappedInputManager::TouchPoint swipeStart{}, swipeEnd{};
+      if (mappedInput.getTouchSwipe(swipeStart, swipeEnd, renderer)) {
+        constexpr int kTopBand = 60;  // gesture must start near the top edge
+        constexpr int kDragMin = 70;  // and travel down at least this far
+        if (swipeStart.y < kTopBand && (swipeEnd.y - swipeStart.y) >= kDragMin) {
+          openGlobalMenu();
+          activityHandled = true;
+        }
+      }
+    }
+
+    // Home button. With SETTINGS.doubleClickHomeMenu enabled, a double-click opens the
+    // global menu; a single click still goes home (deferred by the disambiguation window).
+    // Otherwise a single click goes home immediately (original behavior).
+    const auto doSingleHome = [this] {
+      if (currentActivity && currentActivity->supportsTouchHomeButton() && currentActivity->name != "Home") {
+        currentActivity->onGoHome();
+      }
+    };
+    if (!activityHandled && mappedInput.wasTouchHomeButtonPressed()) {
+      if (currentActivity->onTouchHomeButton()) {
+        // Activity consumed the press (e.g. the global menu dismisses itself).
+      } else if (globalMenuAllowed && SETTINGS.doubleClickHomeMenu) {
+        if (pendingHomeSingle && millis() - lastHomeEventMs <= kDoubleClickWindowMs) {
+          pendingHomeSingle = false;
+          openGlobalMenu();
+        } else {
+          pendingHomeSingle = true;
+          lastHomeEventMs = millis();
+        }
+      } else if (currentActivity->supportsTouchHomeButton() && currentActivity->name != "Home") {
+        currentActivity->onGoHome();
+      }
+      activityHandled = true;
+    }
+    // Fire the deferred single-home action once the double-click window has elapsed.
+    if (pendingHomeSingle && millis() - lastHomeEventMs > kDoubleClickWindowMs) {
+      pendingHomeSingle = false;
+      doSingleHome();
       activityHandled = true;
     }
 
@@ -261,6 +303,17 @@ void ActivityManager::goHome() {
   replaceActivity(std::make_unique<HomeActivity>(renderer, mappedInput), kUiPageTransitionRefreshMode);
 }
 
+void ActivityManager::openGlobalMenu() {
+  // Guard against opening over an activity that doesn't allow it (or over itself).
+  if (!currentActivity || !currentActivity->supportsGlobalMenu() || pendingActivity) {
+    return;
+  }
+  // Readers leave the panel in a grayscale state; the menu must full-refresh to render
+  // crisply over it (see GlobalMenuActivity).
+  const bool overReader = currentActivity->isReaderActivity();
+  pushActivity(std::make_unique<GlobalMenuActivity>(renderer, mappedInput, overReader));
+}
+
 void ActivityManager::pushActivity(std::unique_ptr<Activity>&& activity) {
   if (pendingActivity) {
     // Should never happen in practice
@@ -283,6 +336,14 @@ void ActivityManager::popActivity() {
 bool ActivityManager::preventAutoSleep() const { return currentActivity && currentActivity->preventAutoSleep(); }
 
 bool ActivityManager::isReaderActivity() const { return currentActivity && currentActivity->isReaderActivity(); }
+
+bool ActivityManager::isReaderActivityInStack() const {
+  if (currentActivity && currentActivity->isReaderActivity()) return true;
+  for (const auto& act : stackActivities) {
+    if (act && act->isReaderActivity()) return true;
+  }
+  return false;
+}
 
 bool ActivityManager::isReaderPageActivity() const {
   return currentActivity && (currentActivity->name == "EpubReader" || currentActivity->name == "TxtReader" ||

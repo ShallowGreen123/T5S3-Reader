@@ -65,6 +65,13 @@ class ActivityManager {
   // This variable must only be set by the main loop, to avoid race conditions
   bool requestedUpdate = false;
 
+  // Home-button double-click disambiguation (used only when SETTINGS.doubleClickHomeMenu is on).
+  // Max interval between the two taps for them to count as a double-click. This also gates how
+  // long the single-press action is deferred, so both uses must share this one value.
+  static constexpr unsigned long kDoubleClickWindowMs = 400;
+  unsigned long lastHomeEventMs = 0;
+  bool pendingHomeSingle = false;
+
  public:
   explicit ActivityManager(GfxRenderer& renderer, MappedInputManager& mappedInput)
       : renderer(renderer), mappedInput(mappedInput), renderingMutex(xSemaphoreCreateMutex()) {
@@ -93,6 +100,9 @@ class ActivityManager {
   void goToCrashReport();
   void goHome();
 
+  // Open the global drag-down popup menu as an overlay on top of the current activity.
+  void openGlobalMenu();
+
   // This will move current activity to stack instead of deleting it
   void pushActivity(std::unique_ptr<Activity>&& activity);
 
@@ -102,6 +112,9 @@ class ActivityManager {
 
   bool preventAutoSleep() const;
   bool isReaderActivity() const;
+  // True if the reader is the current activity OR is alive underneath an overlay
+  // (e.g. the global quick menu) on the stack.
+  bool isReaderActivityInStack() const;
   bool isReaderPageActivity() const;
   bool skipLoopDelay() const;
   ScreenshotInfo getScreenshotInfo() const;

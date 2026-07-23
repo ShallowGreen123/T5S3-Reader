@@ -21,6 +21,7 @@
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "KOReaderCredentialStore.h"
+#include "PowerControl.h"
 #include "MappedInputManager.h"
 #include "OpdsServerStore.h"
 #include "RecentBooksStore.h"
@@ -137,6 +138,7 @@ constexpr unsigned long kBootConfirmHoldMs = 700;
 constexpr unsigned long kPcaButtonPowerOffHoldMs = 2000;
 
 void renderPowerOffScreen(const char* status) {
+  (void)status;  // Status line intentionally not shown on the power-off screen.
   RenderLock lock;
   const auto pageWidth = renderer.getScreenWidth();
   const auto pageHeight = renderer.getScreenHeight();
@@ -145,7 +147,6 @@ void renderPowerOffScreen(const char* status) {
   renderer.clearScreen();
   renderer.drawImage(Logo120, (pageWidth - 120) / 2, (pageHeight - 120) / 2 - 30, 120, 120);
   renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 + 40, "CrossPoint", true, EpdFontFamily::BOLD);
-  renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 + 72, status, true, EpdFontFamily::BOLD);
   renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 102, "Hold PWR to power on");
   renderer.displayBuffer(HalDisplay::FULL_REFRESH);
 }
@@ -218,7 +219,7 @@ void enterDeepSleep() {
   }
 
   HalPowerManager::Lock powerLock;  // Ensure we are at normal CPU frequency for sleep preparation
-  APP_STATE.lastSleepFromReader = activityManager.isReaderActivity();
+  APP_STATE.lastSleepFromReader = APP_STATE.lastSleepFromReader || activityManager.isReaderActivityInStack();
   APP_STATE.saveToFile();
 
   activityManager.goToSleep();
@@ -233,7 +234,7 @@ void enterDeepSleep() {
 
 void enterDeepSleepKeepingScreen(bool wakeOnTouch = true) {
   HalPowerManager::Lock powerLock;
-  APP_STATE.lastSleepFromReader = activityManager.isReaderActivity();
+  APP_STATE.lastSleepFromReader = APP_STATE.lastSleepFromReader || activityManager.isReaderActivityInStack();
   APP_STATE.saveToFile();
 
   BoardT5S3::setBacklightLevel(0);
@@ -247,7 +248,7 @@ void enterDeepSleepKeepingScreen(bool wakeOnTouch = true) {
 void enterPowerOffKeepingScreen(const char* status) {
   {
     HalPowerManager::Lock powerLock;
-    APP_STATE.lastSleepFromReader = activityManager.isReaderActivity();
+    APP_STATE.lastSleepFromReader = activityManager.isReaderActivityInStack();
     APP_STATE.saveToFile();
     display.deepSleep();
 
@@ -265,6 +266,12 @@ void enterPowerOffKeepingScreen(const char* status) {
 
   enterDeepSleepKeepingScreen(false);
 }
+
+// Set by activities (e.g. the reader menu's Shut Down button) to request a full
+// power-off. Consumed at the top of loop() so the battery-cut runs in the main-loop
+// context rather than inside an activity's call stack.
+bool g_shutdownRequested = false;
+void requestShutdown() { g_shutdownRequested = true; }
 
 void setupDisplayAndFonts() {
   display.begin();
@@ -462,6 +469,13 @@ void loop() {
 
   gpio.update();
   halTiltSensor.update(SETTINGS.tiltPageTurn, SETTINGS.orientation, activityManager.isReaderActivity());
+
+  // Handle a shutdown requested by an activity (e.g. the reader menu Shut Down button).
+  if (g_shutdownRequested) {
+    g_shutdownRequested = false;
+    enterPowerOffKeepingScreen("");
+    return;
+  }
 
   renderer.setFadingFix(SETTINGS.fadingFix);
 

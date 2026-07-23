@@ -967,6 +967,10 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
     }
     const auto tBwStore = millis();
 
+    // Preserve the 1-bit BW page; the grayscale passes below clear the framebuffer, and
+    // overlays such as the global menu rely on it still holding the readable page.
+    renderer.storeBwBuffer();
+
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
     page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop,
@@ -984,6 +988,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
     renderer.displayGrayBuffer(ReaderUtils::takeReaderRefreshMode(pagesUntilFullRefresh));
     const auto tGrayDisplay = millis();
     renderer.setRenderMode(GfxRenderer::BW);
+    renderer.restoreBwBuffer();  // leave the shared framebuffer holding the readable BW page
     fcm->logStats("gray");
 
     const auto tEnd = millis();

@@ -31,6 +31,8 @@ class MappedInputManager {
   unsigned long getHeldTime() const;
   bool wasTouchTapped(TouchPoint& point, const GfxRenderer& renderer) const;
   bool getTouchHold(TouchPoint& point, unsigned long& heldMs, const GfxRenderer& renderer) const;
+  // Reports the start/end of the most recent swipe in oriented (flip-corrected) logical coordinates.
+  bool getTouchSwipe(TouchPoint& start, TouchPoint& end, const GfxRenderer& renderer) const;
   bool wasTouchHomeButtonPressed() const;
   Labels mapLabels(const char* back, const char* confirm, const char* previous, const char* next) const;
   bool resolveTouchFrontButton(size_t slotIndex, Button& button) const;
