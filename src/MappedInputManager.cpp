@@ -40,6 +40,13 @@ MappedInputManager::TouchPoint orientTouchPoint(const HalGPIO::TouchPoint& raw, 
   if (point.y < 0) point.y = 0;
   if (point.x >= renderer.getScreenWidth()) point.x = renderer.getScreenWidth() - 1;
   if (point.y >= renderer.getScreenHeight()) point.y = renderer.getScreenHeight() - 1;
+
+  // When the UI is flipped 180° (mirrored at the display layer), apply the matching
+  // logical 180° flip to the touch point. A 180° flip is orientation-independent.
+  if (SETTINGS.flipUi) {
+    point.x = static_cast<int16_t>(renderer.getScreenWidth() - 1 - point.x);
+    point.y = static_cast<int16_t>(renderer.getScreenHeight() - 1 - point.y);
+  }
   return point;
 }
 }  // namespace

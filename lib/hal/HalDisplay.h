@@ -59,6 +59,9 @@ class HalDisplay {
 
   void displayBuffer(RefreshMode mode = RefreshMode::FAST_REFRESH, bool turnOffScreen = false);
   void refreshDisplay(RefreshMode mode = RefreshMode::FAST_REFRESH, bool turnOffScreen = false);
+
+  // When enabled, the physical panel output is mirrored 180° (whole UI upside down).
+  void setFlipOutput(bool enabled);
   void requestNextRefresh(RefreshMode mode = RefreshMode::HALF_REFRESH);
   void requestNextDisplayEffect(DisplayEffect effect = DisplayEffect::EFFECT_NONE);
   void suppressInitialFullRefresh();
@@ -94,6 +97,7 @@ class HalDisplay {
   uint8_t* grayscaleBaseBuffer = nullptr;
   bool grayscaleBaseCaptured = false;
   bool displayReady = false;
+  bool flipOutput = false;
   bool forceFullRefresh = true;
   bool forcedRefreshPending = false;
   RefreshMode forcedRefreshMode = RefreshMode::HALF_REFRESH;

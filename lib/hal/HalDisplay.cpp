@@ -451,10 +451,18 @@ void HalDisplay::renderBwToPanelCanvas() const {
   for (uint16_t y = 0; y < DISPLAY_HEIGHT; ++y) {
     const uint8_t* srcRow = frameBuffer + static_cast<uint32_t>(y) * DISPLAY_WIDTH_BYTES;
     uint8_t* dstRow = grayBuffer + static_cast<uint32_t>(y) * DISPLAY_WIDTH;
+    // When flipped, write into the 180°-mirrored destination row/column.
+    uint8_t* dstRowFlipped = grayBuffer + static_cast<uint32_t>(DISPLAY_HEIGHT - 1 - y) * DISPLAY_WIDTH;
     for (uint16_t byteX = 0; byteX < DISPLAY_WIDTH_BYTES; ++byteX) {
       const uint8_t srcByte = srcRow[byteX];
       for (uint8_t bit = 0; bit < 8; ++bit) {
-        dstRow[byteX * 8 + bit] = (srcByte & (0x80 >> bit)) ? kGrayWhite : kGrayBlack;
+        const uint16_t lx = byteX * 8 + bit;
+        const uint8_t value = (srcByte & (0x80 >> bit)) ? kGrayWhite : kGrayBlack;
+        if (flipOutput) {
+          dstRowFlipped[DISPLAY_WIDTH - 1 - lx] = value;
+        } else {
+          dstRow[lx] = value;
+        }
       }
     }
   }
@@ -475,6 +483,8 @@ void HalDisplay::renderGrayToPanelCanvas() const {
     const uint8_t* lsbRow = grayscaleLsbBuffer + static_cast<uint32_t>(y) * DISPLAY_WIDTH_BYTES;
     const uint8_t* msbRow = grayscaleMsbBuffer + static_cast<uint32_t>(y) * DISPLAY_WIDTH_BYTES;
     uint8_t* dstRow = grayBuffer + static_cast<uint32_t>(y) * DISPLAY_WIDTH;
+    // When flipped, write into the 180°-mirrored destination row/column.
+    uint8_t* dstRowFlipped = grayBuffer + static_cast<uint32_t>(DISPLAY_HEIGHT - 1 - y) * DISPLAY_WIDTH;
 
     for (uint16_t byteX = 0; byteX < DISPLAY_WIDTH_BYTES; ++byteX) {
       const uint8_t baseByte = baseRow[byteX];
@@ -483,7 +493,13 @@ void HalDisplay::renderGrayToPanelCanvas() const {
 
       for (uint8_t bit = 0; bit < 8; ++bit) {
         const uint8_t mask = static_cast<uint8_t>(0x80 >> bit);
-        dstRow[byteX * 8 + bit] = grayscaleValueForBit(baseByte, lsbByte, msbByte, mask);
+        const uint16_t lx = byteX * 8 + bit;
+        const uint8_t value = grayscaleValueForBit(baseByte, lsbByte, msbByte, mask);
+        if (flipOutput) {
+          dstRowFlipped[DISPLAY_WIDTH - 1 - lx] = value;
+        } else {
+          dstRow[lx] = value;
+        }
       }
     }
   }
@@ -617,6 +633,15 @@ void HalDisplay::displayBuffer(HalDisplay::RefreshMode mode, bool turnOffScreen)
 }
 
 void HalDisplay::refreshDisplay(HalDisplay::RefreshMode mode, bool turnOffScreen) { displayBuffer(mode, turnOffScreen); }
+
+void HalDisplay::setFlipOutput(bool enabled) {
+  if (flipOutput == enabled) {
+    return;
+  }
+  flipOutput = enabled;
+  // The whole screen moves 180°; force a clean full refresh to avoid e-ink ghosting.
+  forceFullRefresh = true;
+}
 
 void HalDisplay::requestNextRefresh(HalDisplay::RefreshMode mode) {
   forcedRefreshMode = mode;

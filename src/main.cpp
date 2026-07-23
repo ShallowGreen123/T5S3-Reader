@@ -425,6 +425,7 @@ void setup() {
   LOG_DBG("MAIN", "Starting CrossPoint version " CROSSPOINT_VERSION);
 
   setupDisplayAndFonts();
+  display.setFlipOutput(SETTINGS.flipUi != 0);
 
   APP_STATE.loadFromFile();
   RECENT_BOOKS.loadFromFile();
@@ -537,6 +538,20 @@ void loop() {
     }
   };
   const bool isReaderPage = activityManager.isReaderPageActivity();
+  // Reader page-turn direction of the two physical buttons follows the Side Button Layout
+  // setting. BOOT plays the "up" side-button role and IO48/PCA plays the "down" role, so
+  // NEXT_PREV swaps which one turns forward vs back. A 180° UI flip swaps the two physical
+  // buttons as well (top is now bottom), composing with the side-layout swap via XOR.
+  const bool flipUi = SETTINGS.flipUi != 0;
+  const bool swapSideButtons = SETTINGS.sideButtonLayout == CrossPointSettings::NEXT_PREV;
+  const bool effectiveSwap = swapSideButtons != flipUi;
+  const auto bootPageButton = effectiveSwap ? MappedInputManager::Button::PageForward
+                                            : MappedInputManager::Button::PageBack;
+  const auto pcaPageButton = effectiveSwap ? MappedInputManager::Button::PageBack
+                                           : MappedInputManager::Button::PageForward;
+  // Non-reader navigation: BOOT is Up and IO48 is Down, swapped when the UI is flipped.
+  const auto bootNavButton = flipUi ? MappedInputManager::Button::Down : MappedInputManager::Button::Up;
+  const auto pcaNavButton = flipUi ? MappedInputManager::Button::Up : MappedInputManager::Button::Down;
 
   static bool bootLongConfirmHandled = false;
   if (gpio.isPressed(HalGPIO::BTN_POWER)) {
@@ -547,8 +562,9 @@ void loop() {
     }
   } else {
     if (gpio.wasReleased(HalGPIO::BTN_POWER) && !bootLongConfirmHandled) {
-      LOG_DBG("MAIN", "BOOT short press mapped to %s", isReaderPage ? "PageBack" : "Up");
-      queueHardwareButtonTap(isReaderPage ? MappedInputManager::Button::PageBack : MappedInputManager::Button::Up);
+      LOG_DBG("MAIN", "BOOT short press mapped to %s",
+              isReaderPage ? (effectiveSwap ? "PageForward" : "PageBack") : (flipUi ? "Down" : "Up"));
+      queueHardwareButtonTap(isReaderPage ? bootPageButton : bootNavButton);
     }
     bootLongConfirmHandled = false;
   }
@@ -556,8 +572,9 @@ void loop() {
   static bool pcaPowerOffHandled = false;
   if (!gpio.isPressed(HalGPIO::BTN_PCA)) {
     if (gpio.wasReleased(HalGPIO::BTN_PCA) && !pcaPowerOffHandled) {
-      LOG_DBG("MAIN", "PCA9535 button short press mapped to %s", isReaderPage ? "PageForward" : "Down");
-      queueHardwareButtonTap(isReaderPage ? MappedInputManager::Button::PageForward : MappedInputManager::Button::Down);
+      LOG_DBG("MAIN", "PCA9535 button short press mapped to %s",
+              isReaderPage ? (effectiveSwap ? "PageBack" : "PageForward") : (flipUi ? "Up" : "Down"));
+      queueHardwareButtonTap(isReaderPage ? pcaPageButton : pcaNavButton);
     }
     pcaPowerOffHandled = false;
   } else if (!pcaPowerOffHandled && gpio.getHeldTime() >= kPcaButtonPowerOffHoldMs) {
