@@ -23,4 +23,5 @@ class FullScreenMessageActivity final : public Activity {
   void onEnter() override;
   bool supportsTouchHomeButton() const override { return false; }
   bool showsHomeTouchButton() const override { return false; }
+  bool supportsGlobalMenu() const override { return false; }
 };

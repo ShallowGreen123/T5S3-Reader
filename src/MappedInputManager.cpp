@@ -122,6 +122,17 @@ bool MappedInputManager::getTouchHold(TouchPoint& point, unsigned long& heldMs, 
   return true;
 }
 
+bool MappedInputManager::getTouchSwipe(TouchPoint& start, TouchPoint& end, const GfxRenderer& renderer) const {
+  HalGPIO::TouchPoint rawStart, rawEnd;
+  if (!gpio.getTouchSwipe(rawStart, rawEnd)) {
+    return false;
+  }
+
+  start = orientTouchPoint(rawStart, renderer);
+  end = orientTouchPoint(rawEnd, renderer);
+  return true;
+}
+
 bool MappedInputManager::wasTouchHomeButtonPressed() const { return gpio.wasTouchHomeButtonPressed(); }
 
 MappedInputManager::Labels MappedInputManager::mapLabels(const char* back, const char* confirm, const char* previous,

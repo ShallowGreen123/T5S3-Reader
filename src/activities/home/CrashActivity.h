@@ -11,4 +11,5 @@ class CrashActivity final : public Activity {
   void loop() override;
   bool onTouchTap(int16_t x, int16_t y) override;
   void render(RenderLock&&) override;
+  bool supportsGlobalMenu() const override { return false; }
 };

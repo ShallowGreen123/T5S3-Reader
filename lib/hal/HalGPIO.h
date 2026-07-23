@@ -30,7 +30,11 @@ class HalGPIO {
   bool touchMoved = false;
   bool touchTapEvent = false;
   TouchPoint touchTapPoint;
+  bool touchSwipeEvent = false;
+  TouchPoint touchSwipeStart;
+  TouchPoint touchSwipeEnd;
   bool touchHomeButtonEvent = false;
+  bool touchHomeButtonHeld = false;
   unsigned long lastTouchHomeButtonEventTime = 0;
 
   bool lastUsbConnected = false;
@@ -62,6 +66,9 @@ class HalGPIO {
   unsigned long getHeldTime() const;
   bool getTouchTap(TouchPoint& point) const;
   bool getTouchHold(TouchPoint& point, unsigned long& heldMs) const;
+  // Reports the start and end points of the most recent swipe/drag (a moved touch), in
+  // raw portrait-native coordinates. One-shot per release.
+  bool getTouchSwipe(TouchPoint& start, TouchPoint& end) const;
   bool wasTouchHomeButtonPressed() const;
 
   void startDeepSleep(bool wakeOnTouch = true);

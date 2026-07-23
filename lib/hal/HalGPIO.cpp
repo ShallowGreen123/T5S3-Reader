@@ -7,9 +7,9 @@
 HalGPIO gpio;
 
 namespace {
-constexpr uint16_t TOUCH_SWIPE_THRESHOLD = 70;
-constexpr unsigned long TOUCH_RELEASE_GRACE_MS = 120;
-constexpr unsigned long TOUCH_HOME_BUTTON_REPEAT_MS = 250;
+constexpr uint16_t TOUCH_SWIPE_THRESHOLD = 25;
+constexpr unsigned long TOUCH_RELEASE_GRACE_MS = 300;
+constexpr unsigned long TOUCH_HOME_BUTTON_DEBOUNCE_MS = 40;
 constexpr uint64_t POWER_WAKE_MASK = 1ULL << T5S3_BOOT_BTN;
 constexpr uint64_t TOUCH_WAKE_MASK = 1ULL << T5S3_TOUCH_INT;
 
@@ -39,24 +39,37 @@ void HalGPIO::begin() {
 void HalGPIO::readTouchState() {
   BoardT5S3::TouchPoint point;
   bool touchHomeButtonPressed = false;
-  if (!touch.readPoint(&point, &touchHomeButtonPressed)) {
-    if (touchHomeButtonPressed && millis() - lastTouchHomeButtonEventTime >= TOUCH_HOME_BUTTON_REPEAT_MS) {
+  const bool havePoint = touch.readPoint(&point, &touchHomeButtonPressed);
+
+  // Edge-detect the touch home button: emit a single event on each press (the transition to
+  // pressed) rather than auto-repeating while the finger is held. This lets a quick second tap
+  // register instead of being swallowed by a rate-limit window, so fast double-taps work. A short
+  // debounce guards against contact bounce on the press edge.
+  if (touchHomeButtonPressed) {
+    if (!touchHomeButtonHeld && millis() - lastTouchHomeButtonEventTime >= TOUCH_HOME_BUTTON_DEBOUNCE_MS) {
       touchHomeButtonEvent = true;
       lastTouchHomeButtonEventTime = millis();
     }
+    touchHomeButtonHeld = true;
+  } else {
+    touchHomeButtonHeld = false;
+  }
+
+  if (!havePoint) {
     if (touchActive && millis() - lastTouchSeenTime > TOUCH_RELEASE_GRACE_MS) {
       if (!touchMoved) {
         touchTapPoint = {touchStartX, touchStartY};
         touchTapEvent = true;
+      } else {
+        // A moved touch is a swipe/drag. Latch its start and end so higher layers
+        // can detect directional gestures (e.g. a top-edge drag-down).
+        touchSwipeStart = {touchStartX, touchStartY};
+        touchSwipeEnd = currentTouchPoint;
+        touchSwipeEvent = true;
       }
       touchActive = false;
     }
     return;
-  }
-
-  if (touchHomeButtonPressed && millis() - lastTouchHomeButtonEventTime >= TOUCH_HOME_BUTTON_REPEAT_MS) {
-    touchHomeButtonEvent = true;
-    lastTouchHomeButtonEventTime = millis();
   }
 
   uint16_t x = point.x;
@@ -99,6 +112,7 @@ uint8_t HalGPIO::getState() {
 void HalGPIO::update() {
   const unsigned long currentTime = millis();
   touchTapEvent = false;
+  touchSwipeEvent = false;
   touchHomeButtonEvent = false;
   const uint8_t state = getState();
 
@@ -160,6 +174,15 @@ bool HalGPIO::getTouchHold(TouchPoint& point, unsigned long& heldMs) const {
 
   point = currentTouchPoint;
   heldMs = millis() - touchStartTime;
+  return true;
+}
+
+bool HalGPIO::getTouchSwipe(TouchPoint& start, TouchPoint& end) const {
+  if (!touchSwipeEvent) {
+    return false;
+  }
+  start = touchSwipeStart;
+  end = touchSwipeEnd;
   return true;
 }
 

@@ -33,9 +33,14 @@ class Activity {
   virtual void onExit();
   virtual void loop() {}
   virtual bool onTouchTap(int16_t x, int16_t y) { return false; }
+  // Return true to consume a home-button press before the default go-home / global-menu
+  // handling runs (e.g. the global menu dismisses itself instead of navigating home).
+  virtual bool onTouchHomeButton() { return false; }
   virtual bool supportsTouchHomeButton() const { return true; }
   virtual bool showsHomeTouchButton() const { return false; }
   virtual bool supportsTouchButtonHints() const { return true; }
+  // Whether the global drag-down / double-click-home menu may open over this activity.
+  virtual bool supportsGlobalMenu() const { return true; }
 
   virtual void render(RenderLock&&) {}
 
