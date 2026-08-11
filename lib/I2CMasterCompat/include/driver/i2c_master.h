@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
-#include <BoardT5S3.h>
+#include <Board.h>
 #include <Wire.h>
 #include <esp_err.h>
 #include <driver/i2c.h>
@@ -82,7 +82,7 @@ static inline esp_err_t i2c_master_transmit_receive(i2c_master_dev_handle_t dev_
     return ESP_ERR_INVALID_ARG;
   }
 
-  BoardT5S3::ScopedI2CLock lock;
+  Board::ScopedI2CLock lock;
   if (write_size > 0) {
     if (write_buffer == nullptr) {
       return ESP_ERR_INVALID_ARG;
@@ -116,7 +116,7 @@ static inline esp_err_t i2c_master_multi_buffer_transmit(
     return ESP_ERR_INVALID_ARG;
   }
 
-  BoardT5S3::ScopedI2CLock lock;
+  Board::ScopedI2CLock lock;
   dev_handle->wire->beginTransmission(dev_handle->address);
   for (size_t i = 0; i < buffer_count; ++i) {
     if (buffers[i].buffer_size > 0) {

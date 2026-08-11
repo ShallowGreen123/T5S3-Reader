@@ -1,6 +1,6 @@
 #include "SettingsActivity.h"
 
-#include <BoardT5S3.h>
+#include <Board.h>
 #include <GfxRenderer.h>
 #include <HalClock.h>
 #include <Logging.h>
@@ -261,7 +261,7 @@ void SettingsActivity::toggleCurrentSetting() {
   }
 
   if (setting.valuePtr == &CrossPointSettings::backlightLevel) {
-    BoardT5S3::setBacklightLevel(SETTINGS.backlightLevel);
+    Board::setBacklightLevel(SETTINGS.backlightLevel);
   } else if (setting.valuePtr == &CrossPointSettings::timeZone) {
     halClock.configure(SETTINGS.timeZone, SETTINGS.rtcStoresUtc != 0, SETTINGS.rtcVariantHint,
                        SETTINGS.rtcReferenceEpoch);

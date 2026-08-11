@@ -3,6 +3,7 @@
 #include <HalTiltSensor.h>
 #include <I18n.h>
 #include <SdCardFontRegistry.h>
+#include <Board.h>
 
 #include <algorithm>
 #include <cstring>
@@ -206,6 +207,13 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
         SettingInfo::Toggle(StrId::STR_BATTERY, &CrossPointSettings::statusBarBattery, "statusBarBattery",
                             StrId::STR_CUSTOMISE_STATUS_BAR),
     };
+
+    if (!Board::capabilities().hasBacklight) {
+      v.erase(std::remove_if(v.begin(), v.end(), [](const SettingInfo& setting) {
+                return setting.nameId == StrId::STR_BACKLIGHT;
+              }),
+              v.end());
+    }
 
     if (halTiltSensor.isAvailable()) {
       for (auto it = v.begin(); it != v.end(); ++it) {

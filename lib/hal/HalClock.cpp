@@ -1,6 +1,6 @@
 #include "HalClock.h"
 
-#include <BoardT5S3.h>
+#include <Board.h>
 #include <Logging.h>
 #include <Wire.h>
 #include <sys/time.h>
@@ -9,7 +9,7 @@
 #include <cstdlib>
 
 namespace {
-constexpr uint8_t kRtcAddress = T5S3_PCF85063_ADDR;
+constexpr uint8_t kRtcAddress = BoardPins::RtcAddress;
 constexpr uint8_t kRegisterCount = 7;
 constexpr time_t kUsableSystemTimeEpoch = 946684800;   // 2000-01-01 00:00:00 UTC
 constexpr time_t kValidSystemTimeEpoch = 1704067200;  // 2024-01-01 00:00:00 UTC
@@ -306,7 +306,7 @@ bool HalClock::readRegisters(const uint8_t startReg, uint8_t* data, const size_t
     return false;
   }
 
-  BoardT5S3::ScopedI2CLock lock;
+  Board::ScopedI2CLock lock;
   Wire.beginTransmission(kRtcAddress);
   Wire.write(startReg);
   if (Wire.endTransmission(false) != 0) {
@@ -332,7 +332,7 @@ bool HalClock::writeRegisters(const uint8_t startReg, const uint8_t* data, const
     return false;
   }
 
-  BoardT5S3::ScopedI2CLock lock;
+  Board::ScopedI2CLock lock;
   Wire.beginTransmission(kRtcAddress);
   Wire.write(startReg);
   Wire.write(data, len);

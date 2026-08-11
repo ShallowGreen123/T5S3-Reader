@@ -9,8 +9,8 @@
 HalPowerManager powerManager;  // Singleton instance
 
 void HalPowerManager::begin() {
-  BoardT5S3::beginI2C();
-  BoardT5S3::beginBatteryManagement();
+  Board::beginI2C();
+  Board::beginBatteryManagement();
   normalFreq = getCpuFrequencyMhz();
   modeMutex = xSemaphoreCreateMutex();
   assert(modeMutex != nullptr);
@@ -54,7 +54,7 @@ uint16_t HalPowerManager::getBatteryPercentage() const {
   }
 
   uint16_t soc = 0;
-  if (!BoardT5S3::readBatteryStateOfCharge(&soc)) {
+  if (!Board::readBatteryStateOfCharge(&soc)) {
     _batteryLastPollMs = now;
     return _batteryCachedPercent;
   }

@@ -717,6 +717,49 @@ void testFirmwareBinExactMatch() {
   PASS();
 }
 
+void testBoardQualifiedFirmwareAsset() {
+  printf("testBoardQualifiedFirmwareAsset...\n");
+
+  const char* json = R"({
+      "tag_name": "v2.5.0",
+      "assets": [
+        {"name": "firmware.bin", "browser_download_url": "https://legacy", "size": 100},
+        {"name": "firmware-lilygo-epd47-s3.bin", "browser_download_url": "https://epd47", "size": 200},
+        {"name": "firmware-t5s3-pro.bin", "browser_download_url": "https://t5s3", "size": 300}
+      ]
+    })";
+
+  ReleaseJsonParser epd47("lilygo-epd47-s3");
+  epd47.feed(json, strlen(json));
+  ASSERT_TRUE(epd47.foundFirmware());
+  ASSERT_STREQ(epd47.getFirmwareUrl(), "https://epd47");
+  ASSERT_EQ(epd47.getFirmwareSize(), 200u);
+
+  ReleaseJsonParser t5s3("t5s3-pro");
+  t5s3.feed(json, strlen(json));
+  ASSERT_TRUE(t5s3.foundFirmware());
+  ASSERT_STREQ(t5s3.getFirmwareUrl(), "https://t5s3");
+  ASSERT_EQ(t5s3.getFirmwareSize(), 300u);
+
+  printf("  passed\n");
+  PASS();
+}
+
+void testBoardQualifiedFirmwareRejectsOtherBoards() {
+  printf("testBoardQualifiedFirmwareRejectsOtherBoards...\n");
+
+  const char* json =
+      R"({"tag_name":"v2.5.0","assets":[{"name":"firmware-t5s3-pro.bin","browser_download_url":"https://t5s3","size":300}]})";
+  ReleaseJsonParser epd47("lilygo-epd47-s3");
+  epd47.feed(json, strlen(json));
+
+  ASSERT_TRUE(epd47.foundTag());
+  ASSERT_TRUE(!epd47.foundFirmware());
+
+  printf("  passed\n");
+  PASS();
+}
+
 void testLargeSize() {
   printf("testLargeSize...\n");
 
@@ -823,6 +866,8 @@ int main() {
   testResetClearsState();
   testPartialAssetNameMatch();
   testFirmwareBinExactMatch();
+  testBoardQualifiedFirmwareAsset();
+  testBoardQualifiedFirmwareRejectsOtherBoards();
   testLargeSize();
   testSizeZero();
   testMinimalValidJson();

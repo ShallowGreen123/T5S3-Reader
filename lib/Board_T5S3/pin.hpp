@@ -133,10 +133,13 @@ static constexpr uint16_t LogicalHeight = T5S3_LOGICAL_HEIGHT;
 static constexpr uint8_t I2cSda = T5S3_SDA;
 static constexpr uint8_t I2cScl = T5S3_SCL;
 static constexpr uint32_t I2cFreq = T5S3_I2C_FREQ;
+static constexpr uint8_t RtcAddress = T5S3_PCF85063_ADDR;
 
 static constexpr uint8_t SdCs = T5S3_SD_CS;
 static constexpr uint8_t LoraCs = T5S3_LORA_CS;
 static constexpr uint8_t LoraGpsEnable = PCA9535_IO00_LORA_GPS_EN;
 static constexpr uint8_t ExpanderButton = PCA9535_IO12_BUTTON;
 static constexpr uint8_t BootButton = T5S3_BOOT_BTN;
+static constexpr uint8_t PowerButton = T5S3_BOOT_BTN;
+static constexpr uint8_t TouchInterrupt = T5S3_TOUCH_INT;
 }  // namespace BoardT5S3Pins

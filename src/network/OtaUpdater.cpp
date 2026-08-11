@@ -1,5 +1,6 @@
 #include "OtaUpdater.h"
 
+#include <Board.h>
 #include <Logging.h>
 #include <ReleaseJsonParser.h>
 #include <esp_crt_bundle.h>
@@ -35,7 +36,7 @@ esp_err_t event_handler(esp_http_client_event_t* event) {
 
 OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
   esp_err_t esp_err;
-  ReleaseJsonParser releaseParser;
+  ReleaseJsonParser releaseParser(Board::id());
 
   esp_http_client_config_t client_config = {
       .url = latestReleaseUrl,
@@ -87,7 +88,7 @@ OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
   }
 
   if (!releaseParser.foundFirmware()) {
-    LOG_ERR("OTA", "No firmware.bin asset found");
+    LOG_ERR("OTA", "No firmware-%s.bin asset found", Board::id());
     return NO_UPDATE;
   }
 

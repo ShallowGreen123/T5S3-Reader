@@ -26,35 +26,35 @@ const char* onlineText(bool ready, bool readOk) {
   return readOk ? "Online" : "Read error";
 }
 
-const char* chargeStatusName(BoardT5S3::BatteryChargeStatus status) {
+const char* chargeStatusName(Board::BatteryChargeStatus status) {
   switch (status) {
-    case BoardT5S3::BatteryChargeStatus::NotCharging:
+    case Board::BatteryChargeStatus::NotCharging:
       return "Not charging";
-    case BoardT5S3::BatteryChargeStatus::Precharge:
+    case Board::BatteryChargeStatus::Precharge:
       return "Precharge";
-    case BoardT5S3::BatteryChargeStatus::FastCharge:
+    case Board::BatteryChargeStatus::FastCharge:
       return "Fast charge";
-    case BoardT5S3::BatteryChargeStatus::Done:
+    case Board::BatteryChargeStatus::Done:
       return "Done";
-    case BoardT5S3::BatteryChargeStatus::Unknown:
+    case Board::BatteryChargeStatus::Unknown:
     default:
       return "Unknown";
   }
 }
 
-const char* gaugeStateName(BoardT5S3::BatteryGaugeState state) {
+const char* gaugeStateName(Board::BatteryGaugeState state) {
   switch (state) {
-    case BoardT5S3::BatteryGaugeState::Sleep:
+    case Board::BatteryGaugeState::Sleep:
       return "Sleep";
-    case BoardT5S3::BatteryGaugeState::Full:
+    case Board::BatteryGaugeState::Full:
       return "Full";
-    case BoardT5S3::BatteryGaugeState::Charge:
+    case Board::BatteryGaugeState::Charge:
       return "Charge";
-    case BoardT5S3::BatteryGaugeState::Discharge:
+    case Board::BatteryGaugeState::Discharge:
       return "Discharge";
-    case BoardT5S3::BatteryGaugeState::Relax:
+    case Board::BatteryGaugeState::Relax:
       return "Relax";
-    case BoardT5S3::BatteryGaugeState::Unknown:
+    case Board::BatteryGaugeState::Unknown:
     default:
       return "Unknown";
   }
@@ -71,7 +71,7 @@ std::string formatTemperature(uint16_t deciKelvin) {
   return text;
 }
 
-std::string primaryModeText(const BoardT5S3::BatteryState& state, bool hasState) {
+std::string primaryModeText(const Board::BatteryState& state, bool hasState) {
   if (!hasState) {
     return "Unavailable";
   }
@@ -95,10 +95,17 @@ std::string primaryModeText(const BoardT5S3::BatteryState& state, bool hasState)
   return "Unavailable";
 }
 
-std::string summaryText(const BoardT5S3::BatteryState& state, bool hasState) {
-  const auto& profile = BoardT5S3::batteryProfile();
+std::string summaryText(const Board::BatteryState& state, bool hasState) {
+  const auto& profile = Board::batteryProfile();
   if (!hasState) {
     return "Battery management unavailable";
+  }
+
+  if (!Board::capabilities().hasDetailedBatteryTelemetry) {
+    char basicText[96];
+    const uint16_t voltage = state.gaugeReadOk ? state.gaugeVoltageMv : state.batteryVoltageMv;
+    std::snprintf(basicText, sizeof(basicText), "%u%% | %u mV | ADC estimate", state.socPercent, voltage);
+    return basicText;
   }
 
   char text[160];
@@ -151,7 +158,7 @@ std::string hexLineText(const char* label, uint16_t value) {
   return lineText(label, text);
 }
 
-std::array<std::string, 11> gaugeLines(const BoardT5S3::BatteryState& state) {
+std::array<std::string, 11> gaugeLines(const Board::BatteryState& state) {
   if (!state.gaugeReady) {
     return {lineText("VBUS", "--"),
             lineText("State", "Not found"),
@@ -213,7 +220,7 @@ std::array<std::string, 11> gaugeLines(const BoardT5S3::BatteryState& state) {
           lineText("Dbg", dbg)};
 }
 
-std::array<std::string, 9> chargerLines(const BoardT5S3::BatteryState& state) {
+std::array<std::string, 9> chargerLines(const Board::BatteryState& state) {
   if (!state.chargerReady) {
     return {lineText("VBUS", "--"),
             lineText("VBUS mV", "--"),
@@ -259,6 +266,13 @@ std::array<std::string, 9> chargerLines(const BoardT5S3::BatteryState& state) {
           lineText("Status", status)};
 }
 
+std::array<std::string, 4> basicBatteryLines(const Board::BatteryState& state) {
+  return {lineText("Board", Board::displayName()),
+          lineText("State", gaugeStateName(state.gaugeState)),
+          lineText("Charge", static_cast<unsigned>(state.socPercent), "%"),
+          lineText("Voltage", static_cast<unsigned>(state.gaugeVoltageMv), "mV")};
+}
+
 template <size_t N>
 void drawPanel(const GfxRenderer& renderer, Rect rect, const char* title, const std::array<std::string, N>& lines) {
   renderer.drawRoundedRect(rect.x, rect.y, rect.width, rect.height, 2, CARD_RADIUS, true);
@@ -290,8 +304,8 @@ void BatteryStatusActivity::onEnter() {
 }
 
 void BatteryStatusActivity::refreshBattery() {
-  BoardT5S3::beginBatteryManagement();
-  hasState = BoardT5S3::readBatteryState(&state);
+  Board::beginBatteryManagement();
+  hasState = Board::readBatteryState(&state);
 }
 
 void BatteryStatusActivity::loop() {
@@ -344,6 +358,17 @@ void BatteryStatusActivity::render(RenderLock&&) {
 
   const int panelsTop = contentTop + 62;
   const int panelsHeight = std::max(0, contentBottom - panelsTop);
+  if (!Board::capabilities().hasDetailedBatteryTelemetry) {
+    drawPanel(renderer,
+              Rect{sidePadding, panelsTop, pageWidth - sidePadding * 2, panelsHeight},
+              "Battery ADC",
+              basicBatteryLines(state));
+    const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_UPDATE), "", "");
+    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+    renderer.displayBuffer();
+    return;
+  }
+
   const bool sideBySide = pageWidth >= 760 && pageWidth >= pageHeight;
   if (sideBySide) {
     const int panelWidth = (pageWidth - sidePadding * 2 - CARD_GAP) / 2;

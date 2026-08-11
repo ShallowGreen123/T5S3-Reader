@@ -2,7 +2,7 @@
 #include "HalStorage.h"
 
 #include <FS.h>  // need to be included before SdFat.h for compatibility with FS.h's File class
-#include <BoardT5S3.h>
+#include <Board.h>
 #include <Logging.h>
 #include <SdFat.h>
 
@@ -79,8 +79,8 @@ HalStorage::HalStorage() {
 // begin() and ready() are only called from setup, no need to acquire mutex for them
 
 bool HalStorage::begin() {
-  BoardT5S3::prepareSdBus();
-  initialized = sd.begin(T5S3_SD_CS, SD_SPI_FREQUENCY);
+  Board::prepareSdBus();
+  initialized = sd.begin(BoardPins::SdCs, SD_SPI_FREQUENCY);
   if (initialized) {
     LOG_INF("SD", "SD card detected");
   } else {

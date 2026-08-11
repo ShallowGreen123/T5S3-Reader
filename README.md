@@ -1,26 +1,32 @@
-# T5S3 Reader
+# T5S3 / EPD47 Reader
 
 [![PlatformIO Build](https://github.com/ShallowGreen123/t5s3-reader/actions/workflows/platformio-build.yml/badge.svg)](https://github.com/ShallowGreen123/t5s3-reader/actions/workflows/platformio-build.yml)
 
 English | [中文](README_CN.md)
 
-Firmware for the **LilyGo T5 ePaper S3 / T5S3 4.7-inch e-paper device**.
+Firmware for the **LilyGo T5S3** and **LilyGo EPD47 ESP32-S3** 4.7-inch
+e-paper devices.
 
-This project is adapted from CrossPoint Reader and focuses on the LilyGo T5S3 hardware. It includes practical fixes and optimizations for EPUB images, TXT loading speed, low-power shutdown, startup refresh behavior, and general e-paper reading.
+This project is adapted from CrossPoint Reader. Board support is selected at
+compile time so each firmware image targets exactly one hardware platform.
 
 ## Thanks
 
 Special thanks to [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader). This firmware keeps and builds on CrossPoint's activity-based UI architecture, reader logic, settings system, SD-card cache, web file transfer, and many other foundations.
 
-This repository is not the official CrossPoint project and is not affiliated with LilyGo. It is an adaptation and experimental firmware for T5S3 devices.
+This repository is not the official CrossPoint project and is not affiliated with LilyGo. It is an adaptation and experimental firmware for supported LilyGo e-paper devices.
 
-## Target Device
+## Target Devices
 
-- **Device**: [LilyGo T5 ePaper S3](https://github.com/Xinyuan-LilyGO/T5S3-4.7-e-paper-PRO)
-- **MCU**: ESP32-S3
-- **Display**: 4.7-inch e-paper, 960 x 540 physical resolution, 540 x 960 default portrait logical resolution
-- **Storage**: microSD card for books, cache, settings, and screenshots
-- **Input**: front buttons, side buttons, power button, reset button, and touch screen
+| Build target | Hardware | Status |
+| --- | --- | --- |
+| `t5s3-pro` | [LilyGo T5 ePaper S3](https://github.com/Xinyuan-LilyGO/T5S3-4.7-e-paper-PRO) | Existing target |
+| `lilygo-epd47-s3` | [LilyGo EPD47 ESP32-S3](https://github.com/Xinyuan-LilyGO/LilyGo-EPD47/tree/esp32s3) | Compiles; physical acceptance testing is pending |
+
+Both targets use an ESP32-S3, a 960 x 540 panel, a 540 x 960 default portrait
+layout, GT911 touch, and microSD storage. The older ESP32-WROVER EPD47 is not
+supported. EPD47 has no front light or detailed BQ battery telemetry, uses
+GPIO21 for wake, and cannot wake from touch.
 
 | ![](./docs/README_img/t5s3.png) | ![](./docs/README_img/t5s31.png) |
 | --- | --- |
@@ -39,7 +45,7 @@ This repository is not the official CrossPoint project and is not affiliated wit
 
 ## Requirements
 
-- LilyGo T5 ePaper S3 device
+- A supported LilyGo T5S3 or EPD47 ESP32-S3 device
 - microSD card
 - USB-C data cable
 - Python 3
@@ -65,21 +71,27 @@ cd z-T5S3-Reader
 1. Download and open [LILYGO Spark](https://lilygo.cc/en-us/pages/lilygo-spark?srsltid=AfmBOoorTB7ptFu2LQNLRnoI2SA0zBGJTN6JpI9J3hmHEkKhBQSmeu0Y).
 2. Search for your device and install the `corsspoint_lilygo_t5s3_e_paper` firmware.
 
+This option currently applies to T5S3 only.
+
 ![LILYGO Spark firmware](./docs/README_img/lilygo_spark.png)
 
 ### Option 2: PlatformIO
 
 1. Connect the device to your computer with USB-C.
-2. Build the firmware:
+2. Build the firmware for the connected board:
 
 ```bash
-pio run -e default
+pio run -e t5s3-pro
+# or
+pio run -e lilygo-epd47-s3
 ```
 
 3. Upload it to the device:
 
 ```bash
-pio run -e default -t upload
+pio run -e t5s3-pro -t upload
+# or
+pio run -e lilygo-epd47-s3 -t upload
 ```
 
 4. If upload mode is not detected, hold the BOOT button and press RESET, or hold BOOT while reconnecting USB, then run the upload command again.
@@ -98,9 +110,30 @@ pio device monitor -b 115200
 
 ![](./docs/README_img/download1.png)
 
-3. Select the firmware from the `firmware/` folder, set the flash address to `0x0`, choose your serial port, and click `START`.
+3. Select a complete merged image intended for the exact board, set the flash
+   address specified with that image, choose your serial port, and click
+   `START`. PlatformIO's `.pio/build/<environment>/firmware.bin` and the CI
+   `firmware-<board-id>.bin` artifacts are application images, not merged
+   address-`0x0` recovery images.
 
 ![](./docs/README_img/download2.png)
+
+## Firmware Update Safety
+
+Release and CI artifacts use board-qualified names:
+
+- `firmware-t5s3-pro.bin`
+- `firmware-lilygo-epd47-s3.bin`
+
+OTA checks select only the asset for the current board. SD-card updates also
+inspect an embedded board marker and reject firmware built for the other board.
+Use PlatformIO upload to recover from a failed or interrupted application
+update: hold the board's BOOT button, press RESET (or reconnect USB), release
+BOOT, and upload the correct environment again.
+
+The EPD47 target links the GPL-3.0 LilyGo display driver. See
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) before distributing an EPD47
+binary.
 
 ## SD Card And Books
 

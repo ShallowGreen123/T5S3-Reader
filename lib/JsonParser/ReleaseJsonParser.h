@@ -7,7 +7,7 @@
 
 class ReleaseJsonParser {
  public:
-  ReleaseJsonParser();
+  explicit ReleaseJsonParser(const char* boardId = nullptr);
 
   ReleaseJsonParser(const ReleaseJsonParser&) = delete;
   ReleaseJsonParser& operator=(const ReleaseJsonParser&) = delete;
@@ -61,6 +61,7 @@ class ReleaseJsonParser {
   size_t firmwareSize;
   bool tagFound;
   bool firmwareFound;
+  char targetAssetName[48];
 
   char currentAssetName[32];
   char currentAssetUrl[512];

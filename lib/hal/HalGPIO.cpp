@@ -10,34 +10,36 @@ namespace {
 constexpr uint16_t TOUCH_SWIPE_THRESHOLD = 70;
 constexpr unsigned long TOUCH_RELEASE_GRACE_MS = 120;
 constexpr unsigned long TOUCH_HOME_BUTTON_REPEAT_MS = 250;
-constexpr uint64_t POWER_WAKE_MASK = 1ULL << T5S3_BOOT_BTN;
-constexpr uint64_t TOUCH_WAKE_MASK = 1ULL << T5S3_TOUCH_INT;
+constexpr uint64_t POWER_WAKE_MASK = 1ULL << BoardPins::PowerButton;
+constexpr uint64_t TOUCH_WAKE_MASK = 1ULL << BoardPins::TouchInterrupt;
 
 uint8_t buttonBit(uint8_t button) { return static_cast<uint8_t>(1U << button); }
 
 void rotatePhysicalTouchToLogical(uint16_t* x, uint16_t* y) {
+#if defined(BOARD_LILYGO_EPD47_S3)
   const uint16_t physicalX = *x;
   const uint16_t physicalY = *y;
-
-  // if (physicalX < T5S3_WIDTH && physicalY < T5S3_HEIGHT) {
-  //   *x = T5S3_HEIGHT - 1 - physicalY;
-  //   *y = physicalX;
-  // }
+  *x = physicalY < BoardPins::LogicalWidth ? BoardPins::LogicalWidth - 1 - physicalY : 0;
+  *y = physicalX < BoardPins::LogicalHeight ? physicalX : BoardPins::LogicalHeight - 1;
+#else
+  (void)x;
+  (void)y;
+#endif
 }
 }  // namespace
 
 void HalGPIO::begin() {
-  BoardT5S3::begin();
+  Board::begin();
   const bool touchReady = touch.begin();
-  LOG_INF("HW", "Board init: pca9535=%d touch=%d usb=%d", BoardT5S3::pca9535Present(), touchReady,
-          BoardT5S3::isUsbConnected());
+  LOG_INF("HW", "Board init: id=%s pca9535=%d touch=%d usb=%d", Board::id(), Board::pca9535Present(), touchReady,
+          Board::isUsbConnected());
 
   lastUsbConnected = isUsbConnected();
   update();
 }
 
 void HalGPIO::readTouchState() {
-  BoardT5S3::TouchPoint point;
+  Board::TouchPoint point;
   bool touchHomeButtonPressed = false;
   if (!touch.readPoint(&point, &touchHomeButtonPressed)) {
     if (touchHomeButtonPressed && millis() - lastTouchHomeButtonEventTime >= TOUCH_HOME_BUTTON_REPEAT_MS) {
@@ -85,10 +87,10 @@ void HalGPIO::readTouchState() {
 uint8_t HalGPIO::getState() {
   uint8_t state = 0;
 
-  if (BoardT5S3::readButton()) {
+  if (Board::readButton()) {
     state |= buttonBit(BTN_PCA);
   }
-  if (digitalRead(T5S3_BOOT_BTN) == LOW) {
+  if (digitalRead(BoardPins::PowerButton) == LOW) {
     state |= buttonBit(BTN_POWER);
   }
 
@@ -178,10 +180,11 @@ void HalGPIO::startDeepSleep(bool wakeOnTouch) {
     update();
   }
 
-  BoardT5S3::deinitForSleep();
-  pinMode(T5S3_BOOT_BTN, INPUT_PULLUP);
-  pinMode(T5S3_TOUCH_INT, INPUT_PULLUP);
-  const uint64_t wakeMask = wakeOnTouch ? (POWER_WAKE_MASK | TOUCH_WAKE_MASK) : POWER_WAKE_MASK;
+  Board::deinitForSleep();
+  pinMode(BoardPins::PowerButton, INPUT_PULLUP);
+  pinMode(BoardPins::TouchInterrupt, INPUT_PULLUP);
+  const bool enableTouchWake = wakeOnTouch && Board::capabilities().hasTouchWake;
+  const uint64_t wakeMask = enableTouchWake ? (POWER_WAKE_MASK | TOUCH_WAKE_MASK) : POWER_WAKE_MASK;
   LOG_DBG("GPIO", "Entering deep sleep, wakeOnTouch=%d", wakeOnTouch ? 1 : 0);
 #if SOC_GPIO_SUPPORT_DEEPSLEEP_WAKEUP
   esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
@@ -220,7 +223,7 @@ void HalGPIO::verifyPowerButtonWakeup(uint16_t requiredDurationMs, bool shortPre
   }
 }
 
-bool HalGPIO::isUsbConnected() const { return BoardT5S3::isUsbConnected(); }
+bool HalGPIO::isUsbConnected() const { return Board::isUsbConnected(); }
 
 HalGPIO::WakeupReason HalGPIO::getWakeupReason() const {
   const auto wakeupCause = esp_sleep_get_wakeup_cause();
@@ -238,10 +241,10 @@ HalGPIO::WakeupReason HalGPIO::getWakeupReason() const {
   }
 
   if (wakeupCause == ESP_SLEEP_WAKEUP_GPIO) {
-    if (digitalRead(T5S3_BOOT_BTN) == LOW) {
+    if (digitalRead(BoardPins::PowerButton) == LOW) {
       return WakeupReason::PowerButton;
     }
-    if (digitalRead(T5S3_TOUCH_INT) == LOW) {
+    if (digitalRead(BoardPins::TouchInterrupt) == LOW) {
       return WakeupReason::Touch;
     }
     return WakeupReason::Other;

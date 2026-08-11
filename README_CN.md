@@ -1,12 +1,12 @@
-# T5S3 Reader
+# T5S3 / EPD47 Reader
 
 [![PlatformIO Build](https://github.com/ShallowGreen123/t5s3-reader/actions/workflows/platformio-build.yml/badge.svg)](https://github.com/ShallowGreen123/t5s3-reader/actions/workflows/platformio-build.yml)
 
 [English](README.md) | 中文
 
-适用于 **LilyGo T5 ePaper S3 / T5S3 4.7 寸墨水屏设备** 的电子书阅读器固件。
+适用于 **LilyGo T5S3** 与 **LilyGo EPD47 ESP32-S3** 4.7 寸墨水屏设备的电子书阅读器固件。编译时选择板型，每个固件只对应一种硬件。
 
-本项目基于 CrossPoint Reader 的代码和设计继续改造，重点适配 LilyGo T5S3 硬件，并针对 EPUB 插图、TXT 打开速度、低功耗关机、开机刷新等问题做了优化。
+本项目基于 CrossPoint Reader 的代码和设计继续改造，适配 LilyGo T5S3 与 EPD47 ESP32-S3 硬件，并针对 EPUB 插图、TXT 打开速度、低功耗关机、开机刷新等问题做了优化。
 
 ## 致谢
 
@@ -18,11 +18,12 @@
 
 当前目标设备：
 
-- **开发板/设备**：[LilyGo T5 ePaper S3](https://github.com/Xinyuan-LilyGO/T5S3-4.7-e-paper-PRO)
-- **主控**：ESP32-S3
-- **屏幕**：4.7 寸 E-Paper，物理分辨率 960 x 540，默认竖屏逻辑分辨率 540 x 960
-- **存储**：microSD 卡，用于放置电子书、缓存、设置和截图
-- **输入**：前排按键、侧边按键、电源键、复位键、触摸屏
+| 编译目标 | 硬件 | 状态 |
+| --- | --- | --- |
+| `t5s3-pro` | [LilyGo T5 ePaper S3](https://github.com/Xinyuan-LilyGO/T5S3-4.7-e-paper-PRO) | 原有目标 |
+| `lilygo-epd47-s3` | [LilyGo EPD47 ESP32-S3](https://github.com/Xinyuan-LilyGO/LilyGo-EPD47/tree/esp32s3) | 已通过编译，待实机验收 |
+
+两种目标均使用 ESP32-S3、960 x 540 墨水屏、GT911 触摸与 microSD。旧版 ESP32-WROVER EPD47 不在支持范围内。EPD47 没有前光和 BQ 电量计，使用 GPIO21 唤醒，且不支持触摸唤醒。
 
 | ![](./docs/README_img/t5s3.png) | ![](./docs/README_img/t5s31.png) |
 | --- | --- |
@@ -43,7 +44,7 @@
 
 你需要：
 
-- LilyGo T5 ePaper S3 设备
+- 受支持的 LilyGo T5S3 或 EPD47 ESP32-S3 设备
 - microSD 卡
 - USB-C 数据线
 - Python 3
@@ -69,6 +70,8 @@ cd z-T5S3-Reader
 1. 下载并打开 [LILYGO Spark](https://lilygo.cc/en-us/pages/lilygo-spark?srsltid=AfmBOoorTB7ptFu2LQNLRnoI2SA0zBGJTN6JpI9J3hmHEkKhBQSmeu0Y)。
 2. 搜索你的设备，并下载 `corsspoint_lilygo_t5s3_e_paper` 程序。
 
+该方式目前只适用于 T5S3。
+
 ![LILYGO Spark 固件下载](./docs/README_img/lilygo_spark.png)
 
 ### 方式二：使用 PlatformIO 下载
@@ -77,13 +80,17 @@ cd z-T5S3-Reader
 2. 在仓库根目录编译固件：
 
 ```bash
-pio run -e default
+pio run -e t5s3-pro
+# 或
+pio run -e lilygo-epd47-s3
 ```
 
 3. 下载到设备：
 
 ```bash
-pio run -e default -t upload
+pio run -e t5s3-pro -t upload
+# 或
+pio run -e lilygo-epd47-s3 -t upload
 ```
 
 4. 如果无法进入下载模式，可以按住设备的 BOOT 键，再按一下 RESET，或按住 BOOT 后重新插入 USB，然后重新执行上传命令。
@@ -102,9 +109,20 @@ pio device monitor -b 115200
 
 ![](./docs/README_img/download1.png)
 
-3. 选择 `firmware/` 文件夹的固件，设置下载地址为 `0x0`，然后选择你的串口，最后点击 `START` 下载
+3. 选择与板型严格对应的完整合并镜像，按镜像说明设置下载地址，然后选择串口并点击 `START`。PlatformIO 生成的 `.pio/build/<环境>/firmware.bin` 和 CI 的 `firmware-<板型>.bin` 是应用镜像，不能作为地址 `0x0` 的完整恢复镜像使用。
 
 ![](./docs/README_img/download2.png)
+
+## 固件升级安全
+
+发布与 CI 产物使用板型限定名称：
+
+- `firmware-t5s3-pro.bin`
+- `firmware-lilygo-epd47-s3.bin`
+
+OTA 只会选择当前板型对应的文件。通过 SD 卡升级时，固件还会检查内嵌的板型标记并拒绝另一种板子的固件。如果应用升级失败或中断，请按住开发板的 BOOT 键并按 RESET（或重新连接 USB），释放 BOOT 后通过 PlatformIO 上传正确的环境。
+
+EPD47 目标链接了 GPL-3.0 的 LilyGo 显示驱动。分发 EPD47 二进制前请阅读 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ## SD 卡和电子书
 
