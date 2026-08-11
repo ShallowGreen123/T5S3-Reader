@@ -1,6 +1,6 @@
 #include "SettingsActivity.h"
 
-#include <BoardT5S3.h>
+#include <Board.h>
 #include <GfxRenderer.h>
 #include <HalClock.h>
 #include <Logging.h>
@@ -261,7 +261,7 @@ void SettingsActivity::toggleCurrentSetting() {
   }
 
   if (setting.valuePtr == &CrossPointSettings::backlightLevel) {
-    BoardT5S3::setBacklightLevel(SETTINGS.backlightLevel);
+    Board::setBacklightLevel(SETTINGS.backlightLevel);
   } else if (setting.valuePtr == &CrossPointSettings::flipUi) {
     // Apply the 180° flip immediately (forces a full refresh) so the change is visible now.
     display.setFlipOutput(SETTINGS.flipUi != 0);

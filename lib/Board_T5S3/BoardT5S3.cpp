@@ -31,6 +31,15 @@ constexpr BatteryProfile kBatteryProfile = {
     .currentThresholdMa = 20,
 };
 
+constexpr BoardCapabilities kCapabilities = {
+    .hasBacklight = true,
+    .hasDetailedBatteryTelemetry = true,
+    .hasHardPowerOff = true,
+    .hasTouchWake = true,
+    .hasTouch = true,
+    .hasRtc = true,
+};
+
 bool batteryInitAttempted = false;
 bool bq25896Ready = false;
 bool bq27220Ready = false;
@@ -194,6 +203,14 @@ bool configureBq27220() {
 }
 
 }  // namespace
+
+const char* id() { return "t5s3-pro"; }
+
+const char* displayName() { return "LilyGo T5S3 E-Paper PRO/Lite"; }
+
+const char* firmwareMarker() { return "CROSSPOINT_BOARD_ID:t5s3-pro"; }
+
+const BoardCapabilities& capabilities() { return kCapabilities; }
 
 ScopedI2CLock::ScopedI2CLock() {
   xSemaphoreTakeRecursive(ensureI2CMutex(), portMAX_DELAY);

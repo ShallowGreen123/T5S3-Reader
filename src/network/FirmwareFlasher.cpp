@@ -1,6 +1,7 @@
 #include "FirmwareFlasher.h"
 
 #include <Arduino.h>
+#include <Board.h>
 #include <HalStorage.h>
 #include <Logging.h>
 #include <esp_ota_ops.h>
@@ -48,6 +49,8 @@ const char* resultName(Result r) {
       return "BAD_SHA";
     case Result::BAD_SIZE:
       return "BAD_SIZE";
+    case Result::BOARD_MISMATCH:
+      return "BOARD_MISMATCH";
     case Result::NO_PARTITION:
       return "NO_PARTITION";
     case Result::OOM:
@@ -65,6 +68,33 @@ const char* resultName(Result r) {
 }
 
 namespace {
+bool containsBoardMarker(HalFile& file, const char* marker) {
+  constexpr size_t MARKER_SCAN_CHUNK = 256;
+  const size_t markerLength = marker == nullptr ? 0 : strlen(marker);
+  if (markerLength == 0 || !file.seekSet(0)) {
+    return false;
+  }
+
+  uint8_t buffer[MARKER_SCAN_CHUNK];
+  size_t matched = 0;
+  while (file.available()) {
+    const int read = file.read(buffer, sizeof(buffer));
+    if (read <= 0) {
+      return false;
+    }
+    for (int i = 0; i < read; ++i) {
+      if (buffer[i] == static_cast<uint8_t>(marker[matched])) {
+        if (++matched == markerLength) {
+          return true;
+        }
+      } else {
+        matched = buffer[i] == static_cast<uint8_t>(marker[0]) ? 1 : 0;
+      }
+    }
+  }
+  return false;
+}
+
 // Stream `length` bytes from `file` starting at the current read offset, feeding them through
 // both the XOR-checksum and SHA256 accumulators. Used by validateImageFile so the whole image
 // is verified end-to-end without holding it in RAM (ESP32-C3 only has ~380 KB).
@@ -219,6 +249,13 @@ Result validateImageFile(const char* sdPath, size_t partitionSize) {
       file.close();
       return Result::BAD_SHA;
     }
+  }
+
+  if (!containsBoardMarker(file, Board::firmwareMarker())) {
+    LOG_ERR("FLASH", "firmware board marker does not match %s", Board::id());
+    mbedtls_sha256_free(&shaCtx);
+    file.close();
+    return Result::BOARD_MISMATCH;
   }
 
   mbedtls_sha256_free(&shaCtx);

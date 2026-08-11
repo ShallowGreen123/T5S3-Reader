@@ -1,6 +1,7 @@
 #include "ReleaseJsonParser.h"
 
 #include <cstdlib>
+#include <cstdio>
 #include <cstring>
 
 namespace {
@@ -13,9 +14,17 @@ void safeCopy(char* dst, size_t dstSize, const char* src, size_t srcLen) {
 
 }  // namespace
 
-ReleaseJsonParser::ReleaseJsonParser()
+ReleaseJsonParser::ReleaseJsonParser(const char* boardId)
     : parser(JsonCallbacks{this, sOnKey, sOnString, sOnNumber, sOnBool, sOnNull, sOnObjectStart, sOnObjectEnd,
                            sOnArrayStart, sOnArrayEnd}) {
+  if (boardId != nullptr && boardId[0] != '\0') {
+    const int written = snprintf(targetAssetName, sizeof(targetAssetName), "firmware-%s.bin", boardId);
+    if (written < 0 || static_cast<size_t>(written) >= sizeof(targetAssetName)) {
+      targetAssetName[0] = '\0';
+    }
+  } else {
+    safeCopy(targetAssetName, sizeof(targetAssetName), "firmware.bin", strlen("firmware.bin"));
+  }
   reset();
 }
 
@@ -44,7 +53,7 @@ const char* ReleaseJsonParser::getFirmwareUrl() const { return firmwareUrl; }
 size_t ReleaseJsonParser::getFirmwareSize() const { return firmwareSize; }
 
 void ReleaseJsonParser::commitAsset() {
-  if (strcmp(currentAssetName, "firmware.bin") == 0) {
+  if (targetAssetName[0] != '\0' && strcmp(currentAssetName, targetAssetName) == 0) {
     memcpy(firmwareUrl, currentAssetUrl, sizeof(firmwareUrl));
     firmwareSize = currentAssetSize;
     firmwareFound = true;

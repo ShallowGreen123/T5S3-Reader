@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
-#include <BoardT5S3.h>
+#include <Board.h>
 #include <Logging.h>
 #include <Wire.h>
 #include <freertos/semphr.h>

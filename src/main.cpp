@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <BoardT5S3.h>
+#include <Board.h>
 #include <Epub.h>
 #include <FontCacheManager.h>
 #include <FontDecompressor.h>
@@ -136,6 +136,7 @@ unsigned long t1 = 0;
 unsigned long t2 = 0;
 constexpr unsigned long kBootConfirmHoldMs = 700;
 constexpr unsigned long kPcaButtonPowerOffHoldMs = 2000;
+constexpr unsigned long kEpd47PowerOffHoldMs = 2000;
 
 void renderPowerOffScreen(const char* status) {
   (void)status;  // Status line intentionally not shown on the power-off screen.
@@ -147,7 +148,8 @@ void renderPowerOffScreen(const char* status) {
   renderer.clearScreen();
   renderer.drawImage(Logo120, (pageWidth - 120) / 2, (pageHeight - 120) / 2 - 30, 120, 120);
   renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 + 40, "CrossPoint", true, EpdFontFamily::BOLD);
-  renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 102, "Hold PWR to power on");
+  renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 102,
+                            gpio.deviceIsEpd47() ? "Press PWR to power on" : "Hold PWR to power on");
   renderer.displayBuffer(HalDisplay::FULL_REFRESH);
 }
 
@@ -223,7 +225,7 @@ void enterDeepSleep() {
   APP_STATE.saveToFile();
 
   activityManager.goToSleep();
-  BoardT5S3::setBacklightLevel(0);
+  Board::setBacklightLevel(0);
 
   halTiltSensor.deepSleep();
   display.deepSleep();
@@ -237,7 +239,7 @@ void enterDeepSleepKeepingScreen(bool wakeOnTouch = true) {
   APP_STATE.lastSleepFromReader = APP_STATE.lastSleepFromReader || activityManager.isReaderActivityInStack();
   APP_STATE.saveToFile();
 
-  BoardT5S3::setBacklightLevel(0);
+  Board::setBacklightLevel(0);
   halTiltSensor.deepSleep();
   display.deepSleep();
   LOG_DBG("MAIN", "Entering deep sleep with current screen preserved, wakeOnTouch=%d", wakeOnTouch ? 1 : 0);
@@ -253,14 +255,18 @@ void enterPowerOffKeepingScreen(const char* status) {
     display.deepSleep();
 
     renderPowerOffScreen(status);
-    BoardT5S3::setBacklightLevel(0);
-    if (BoardT5S3::shutdownBatteryPower()) {
-      delay(1500);
-      LOG_DBG("MAIN", "BQ25896 shutdown returned but device is still running; falling back to deep sleep");
+    Board::setBacklightLevel(0);
+    if (Board::capabilities().hasHardPowerOff) {
+      if (Board::shutdownBatteryPower()) {
+        delay(1500);
+        LOG_DBG("MAIN", "Battery power shutdown returned; falling back to deep sleep");
+      } else {
+        renderPowerOffScreen("Entering sleep mode...");
+        Board::setBacklightLevel(0);
+        LOG_ERR("MAIN", "Battery power shutdown failed or was rejected; falling back to deep sleep");
+      }
     } else {
-      renderPowerOffScreen("Entering sleep mode...");
-      BoardT5S3::setBacklightLevel(0);
-      LOG_ERR("MAIN", "BQ25896 shutdown failed or rejected; falling back to deep sleep");
+      LOG_DBG("MAIN", "Hard power-off is unavailable; using deep sleep as power-off");
     }
   }
 
@@ -400,7 +406,7 @@ void setup() {
       break;
   }
 
-  BoardT5S3::setBacklightLevel(SETTINGS.backlightLevel);
+  Board::setBacklightLevel(SETTINGS.backlightLevel);
 
   // Recovery firmware mode: hold left side button (BTN_UP) together with the power button at
   // boot to skip directly to the SD-card firmware update screen. Useful on devices where USB
@@ -553,20 +559,37 @@ void loop() {
   const auto bootNavButton = flipUi ? MappedInputManager::Button::Down : MappedInputManager::Button::Up;
   const auto pcaNavButton = flipUi ? MappedInputManager::Button::Up : MappedInputManager::Button::Down;
 
-  static bool bootLongConfirmHandled = false;
-  if (gpio.isPressed(HalGPIO::BTN_POWER)) {
-    if (!bootLongConfirmHandled && gpio.getHeldTime() >= kBootConfirmHoldMs) {
-      LOG_DBG("MAIN", "BOOT long press mapped to Confirm");
-      bootLongConfirmHandled = true;
-      queueHardwareButtonTap(MappedInputManager::Button::Confirm);
+  static bool powerButtonLongPressHandled = false;
+  if (gpio.deviceIsEpd47()) {
+    if (gpio.isPressed(HalGPIO::BTN_POWER)) {
+      if (!powerButtonLongPressHandled && gpio.getHeldTime() >= kEpd47PowerOffHoldMs) {
+        LOG_DBG("MAIN", "EPD47 power button long press requested deep-sleep power-off");
+        powerButtonLongPressHandled = true;
+        enterPowerOffKeepingScreen("Powered off");
+        return;
+      }
+    } else {
+      if (gpio.wasReleased(HalGPIO::BTN_POWER) && !powerButtonLongPressHandled) {
+        LOG_DBG("MAIN", "EPD47 power button short press mapped to Back");
+        queueHardwareButtonTap(MappedInputManager::Button::Back);
+      }
+      powerButtonLongPressHandled = false;
     }
   } else {
-    if (gpio.wasReleased(HalGPIO::BTN_POWER) && !bootLongConfirmHandled) {
-      LOG_DBG("MAIN", "BOOT short press mapped to %s",
-              isReaderPage ? (effectiveSwap ? "PageForward" : "PageBack") : (flipUi ? "Down" : "Up"));
-      queueHardwareButtonTap(isReaderPage ? bootPageButton : bootNavButton);
+    if (gpio.isPressed(HalGPIO::BTN_POWER)) {
+      if (!powerButtonLongPressHandled && gpio.getHeldTime() >= kBootConfirmHoldMs) {
+        LOG_DBG("MAIN", "BOOT long press mapped to Confirm");
+        powerButtonLongPressHandled = true;
+        queueHardwareButtonTap(MappedInputManager::Button::Confirm);
+      }
+    } else {
+      if (gpio.wasReleased(HalGPIO::BTN_POWER) && !powerButtonLongPressHandled) {
+        LOG_DBG("MAIN", "BOOT short press mapped to %s",
+                isReaderPage ? (effectiveSwap ? "PageForward" : "PageBack") : (flipUi ? "Down" : "Up"));
+        queueHardwareButtonTap(isReaderPage ? bootPageButton : bootNavButton);
+      }
+      powerButtonLongPressHandled = false;
     }
-    bootLongConfirmHandled = false;
   }
 
   static bool pcaPowerOffHandled = false;

@@ -1,6 +1,8 @@
 #include <HalDisplay.h>
 
-#include <BoardT5S3.h>
+#if defined(BOARD_T5S3_PRO) || defined(BOARD_T5S3)
+
+#include <Board.h>
 #include <Logging.h>
 #include <M5GFX.h>
 #include <lgfx/v1/platforms/esp32/Bus_EPD.h>
@@ -34,7 +36,7 @@ constexpr uint8_t kGrayLight = 0xAA;
 constexpr uint8_t kGrayWhite = 0xFF;
 
 bool writeTpsRegister(const uint8_t reg, const uint8_t* data, const size_t len) {
-  BoardT5S3::ScopedI2CLock lock;
+  Board::ScopedI2CLock lock;
   Wire.beginTransmission(T5S3_TPS65185_ADDR);
   Wire.write(reg);
   if (data != nullptr && len > 0) {
@@ -50,7 +52,7 @@ bool readTpsRegister(const uint8_t reg, uint8_t* data, const size_t len) {
     return false;
   }
 
-  BoardT5S3::ScopedI2CLock lock;
+  Board::ScopedI2CLock lock;
   Wire.beginTransmission(T5S3_TPS65185_ADDR);
   Wire.write(reg);
   if (Wire.endTransmission(false) != 0) {
@@ -75,7 +77,7 @@ bool waitForPcaPinHigh(const uint8_t pin, const uint32_t timeoutMs) {
   const uint32_t start = millis();
   bool high = false;
   while (millis() - start < timeoutMs) {
-    if (BoardT5S3::readPca9535Pin(pin, &high) && high) {
+    if (Board::readPca9535Pin(pin, &high) && high) {
       return true;
     }
     delay(1);
@@ -123,38 +125,38 @@ class T5S3BusEPD : public lgfx::Bus_EPD {
   bool preparePowerPins() {
     // Keep the full expander setup sequence on the bus atomically. The render
     // task can power-cycle EPD rails while the main loop is polling RTC/touch.
-    BoardT5S3::ScopedI2CLock busLock;
+    Board::ScopedI2CLock busLock;
     bool ok = true;
-    ok &= BoardT5S3::setPca9535PinMode(PCA9535_IO10_EP_OE, OUTPUT);
-    ok &= BoardT5S3::setPca9535PinMode(PCA9535_IO11_EP_MODE, OUTPUT);
-    ok &= BoardT5S3::setPca9535PinMode(PCA9535_IO13_TPS_PWRUP, OUTPUT);
-    ok &= BoardT5S3::setPca9535PinMode(PCA9535_IO14_VCOM_CTRL, OUTPUT);
-    ok &= BoardT5S3::setPca9535PinMode(PCA9535_IO15_TPS_WAKEUP, OUTPUT);
-    ok &= BoardT5S3::setPca9535PinMode(PCA9535_IO16_TPS_PWR_GOOD, INPUT);
-    ok &= BoardT5S3::setPca9535PinMode(PCA9535_IO17_TPS_INT, INPUT);
+    ok &= Board::setPca9535PinMode(PCA9535_IO10_EP_OE, OUTPUT);
+    ok &= Board::setPca9535PinMode(PCA9535_IO11_EP_MODE, OUTPUT);
+    ok &= Board::setPca9535PinMode(PCA9535_IO13_TPS_PWRUP, OUTPUT);
+    ok &= Board::setPca9535PinMode(PCA9535_IO14_VCOM_CTRL, OUTPUT);
+    ok &= Board::setPca9535PinMode(PCA9535_IO15_TPS_WAKEUP, OUTPUT);
+    ok &= Board::setPca9535PinMode(PCA9535_IO16_TPS_PWR_GOOD, INPUT);
+    ok &= Board::setPca9535PinMode(PCA9535_IO17_TPS_INT, INPUT);
 
-    ok &= BoardT5S3::writePca9535Pin(PCA9535_IO10_EP_OE, false);
-    ok &= BoardT5S3::writePca9535Pin(PCA9535_IO11_EP_MODE, false);
-    ok &= BoardT5S3::writePca9535Pin(PCA9535_IO13_TPS_PWRUP, false);
-    ok &= BoardT5S3::writePca9535Pin(PCA9535_IO14_VCOM_CTRL, false);
-    ok &= BoardT5S3::writePca9535Pin(PCA9535_IO15_TPS_WAKEUP, false);
+    ok &= Board::writePca9535Pin(PCA9535_IO10_EP_OE, false);
+    ok &= Board::writePca9535Pin(PCA9535_IO11_EP_MODE, false);
+    ok &= Board::writePca9535Pin(PCA9535_IO13_TPS_PWRUP, false);
+    ok &= Board::writePca9535Pin(PCA9535_IO14_VCOM_CTRL, false);
+    ok &= Board::writePca9535Pin(PCA9535_IO15_TPS_WAKEUP, false);
     return ok;
   }
 
   bool powerOnSequence() {
     // Hold the I2C bus for the whole EPD power-on sequence so RTC/touch reads
     // cannot interleave with the PCA9535/TPS65185 transactions.
-    BoardT5S3::ScopedI2CLock busLock;
+    Board::ScopedI2CLock busLock;
     const auto& cfg = config();
 
     lgfx::gpio_hi(cfg.pin_spv);
 
     bool ok = true;
-    ok &= BoardT5S3::writePca9535Pin(PCA9535_IO10_EP_OE, true);
-    ok &= BoardT5S3::writePca9535Pin(PCA9535_IO11_EP_MODE, true);
-    ok &= BoardT5S3::writePca9535Pin(PCA9535_IO15_TPS_WAKEUP, true);
-    ok &= BoardT5S3::writePca9535Pin(PCA9535_IO13_TPS_PWRUP, true);
-    ok &= BoardT5S3::writePca9535Pin(PCA9535_IO14_VCOM_CTRL, true);
+    ok &= Board::writePca9535Pin(PCA9535_IO10_EP_OE, true);
+    ok &= Board::writePca9535Pin(PCA9535_IO11_EP_MODE, true);
+    ok &= Board::writePca9535Pin(PCA9535_IO15_TPS_WAKEUP, true);
+    ok &= Board::writePca9535Pin(PCA9535_IO13_TPS_PWRUP, true);
+    ok &= Board::writePca9535Pin(PCA9535_IO14_VCOM_CTRL, true);
     if (!ok) {
       LOG_ERR("DSP", "Failed to assert EPD power rails");
       powerOffSequence();
@@ -196,15 +198,15 @@ class T5S3BusEPD : public lgfx::Bus_EPD {
   }
 
   void powerOffSequence() {
-    BoardT5S3::ScopedI2CLock busLock;
+    Board::ScopedI2CLock busLock;
     const auto& cfg = config();
 
-    BoardT5S3::writePca9535Pin(PCA9535_IO10_EP_OE, false);
-    BoardT5S3::writePca9535Pin(PCA9535_IO11_EP_MODE, false);
-    BoardT5S3::writePca9535Pin(PCA9535_IO13_TPS_PWRUP, false);
-    BoardT5S3::writePca9535Pin(PCA9535_IO14_VCOM_CTRL, false);
+    Board::writePca9535Pin(PCA9535_IO10_EP_OE, false);
+    Board::writePca9535Pin(PCA9535_IO11_EP_MODE, false);
+    Board::writePca9535Pin(PCA9535_IO13_TPS_PWRUP, false);
+    Board::writePca9535Pin(PCA9535_IO14_VCOM_CTRL, false);
     delay(1);
-    BoardT5S3::writePca9535Pin(PCA9535_IO15_TPS_WAKEUP, false);
+    Board::writePca9535Pin(PCA9535_IO15_TPS_WAKEUP, false);
 
     lgfx::gpio_lo(cfg.pin_spv);
     _pwr_on = false;
@@ -335,7 +337,7 @@ bool HalDisplay::initializePanelCanvas() {
 
 void HalDisplay::begin() {
   releaseBackend();
-  BoardT5S3::beginI2C();
+  Board::beginI2C();
 
   if (!frameBuffer) {
     frameBuffer = allocatePlane();
@@ -658,7 +660,7 @@ void HalDisplay::deepSleep() {
     gfx->powerSave(true);
     gfx->sleep();
   }
-  BoardT5S3::deinitForSleep();
+  Board::deinitForSleep();
 }
 
 uint8_t* HalDisplay::getFrameBuffer() const { return frameBuffer; }
@@ -760,3 +762,5 @@ uint16_t HalDisplay::getVisibleHeight() const { return VISIBLE_HEIGHT; }
 uint16_t HalDisplay::getDisplayWidthBytes() const { return DISPLAY_WIDTH_BYTES; }
 
 uint32_t HalDisplay::getBufferSize() const { return BUFFER_SIZE; }
+
+#endif  // BOARD_T5S3_PRO || BOARD_T5S3

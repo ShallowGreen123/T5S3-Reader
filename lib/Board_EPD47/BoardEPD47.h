@@ -3,9 +3,10 @@
 #include <Arduino.h>
 
 #include <BoardCapabilities.h>
+
 #include "pin.hpp"
 
-namespace BoardT5S3 {
+namespace BoardEPD47 {
 
 const char* id();
 const char* displayName();
@@ -130,12 +131,11 @@ class GT911Touch {
   bool isAvailable() const { return available; }
 
  private:
-  uint8_t address = T5S3_GT911_ADDR;
-  void resetForAddress(uint8_t addr);
+  uint8_t address = 0x5D;
   bool probeAddress(uint8_t addr);
   bool available = false;
   bool writeReg8(uint16_t reg, uint8_t value);
   bool readReg(uint16_t reg, uint8_t* data, size_t len);
 };
 
-}  // namespace BoardT5S3
+}  // namespace BoardEPD47

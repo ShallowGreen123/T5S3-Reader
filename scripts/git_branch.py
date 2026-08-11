@@ -1,6 +1,6 @@
 """
 PlatformIO pre-build script: inject git branch and short SHA into
-CROSSPOINT_VERSION for the default (dev) environment.
+CROSSPOINT_VERSION for development environments.
 
 Results in a version string like:  1.1.0-dev-feat-kosync-xpath-05c6cf8
 Release environments are unaffected; they set CROSSPOINT_VERSION in the ini.
@@ -10,6 +10,9 @@ import configparser
 import os
 import subprocess
 import sys
+
+
+DEV_ENVIRONMENTS = {'default', 't5s3-pro', 'lilygo-epd47-s3'}
 
 
 def warn(msg):
@@ -77,9 +80,9 @@ def get_base_version(project_dir):
 
 
 def inject_version(env):
-    # Only applies to the dev (default) environment; release envs set the
+    # Only applies to development environments; release envs set the
     # version via build_flags in platformio.ini and are unaffected.
-    if env['PIOENV'] != 'default':
+    if env['PIOENV'] not in DEV_ENVIRONMENTS:
         return
 
     project_dir = env['PROJECT_DIR']

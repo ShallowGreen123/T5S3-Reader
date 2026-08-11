@@ -24,6 +24,7 @@ enum class Result {
   BAD_CHECKSUM,  // ESP image XOR checksum mismatch
   BAD_SHA,       // SHA256 trailer mismatch (hash_appended images)
   BAD_SIZE,      // body+pad+sha length doesn't match file size
+  BOARD_MISMATCH,
   NO_PARTITION,
   OOM,
   READ_FAIL,

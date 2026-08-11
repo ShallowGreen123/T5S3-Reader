@@ -30,8 +30,20 @@ concurrency:
 
 jobs:
   build:
-    name: Build firmware
+    name: Build ${{ matrix.environment }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - environment: t5s3-pro
+            board_id: t5s3-pro
+            firmware_name: firmware-t5s3-pro.bin
+            merged_firmware_name: firmware-t5s3-pro-merged.bin
+          - environment: lilygo-epd47-s3
+            board_id: lilygo-epd47-s3
+            firmware_name: firmware-lilygo-epd47-s3.bin
+            merged_firmware_name: firmware-lilygo-epd47-s3-merged.bin
 
     steps:
       - name: Check out repository
@@ -57,14 +69,35 @@ jobs:
       - name: Install PlatformIO
         run: python -m pip install platformio==6.1.19
 
-      - name: Build default firmware
-        run: pio run -e default
+      - name: Build firmware
+        run: pio run -e ${{ matrix.environment }}
 
-      - name: Upload firmware artifacts
+      - name: Stage board-qualified firmware
+        run: |
+          grep -a -q "CROSSPOINT_BOARD_ID:${{ matrix.board_id }}" ".pio/build/${{ matrix.environment }}/firmware.bin"
+          mkdir -p dist
+          cp ".pio/build/${{ matrix.environment }}/firmware.bin" "dist/${{ matrix.firmware_name }}"
+          cp ".pio/build/${{ matrix.environment }}/firmware-merged.bin" "dist/${{ matrix.merged_firmware_name }}"
+
+      - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: firmware
+          name: firmware-${{ matrix.board_id }}
           path: |
-            .pio/build/default/firmware.bin
-            .pio/build/default/firmware-merged.bin
+            dist/${{ matrix.firmware_name }}
+            dist/${{ matrix.merged_firmware_name }}
           if-no-files-found: error
+
+  host-tests:
+    name: Host parser tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run streaming JSON parser tests
+        run: bash test/run_streaming_json_parser_test.sh
+
+      - name: Run release JSON parser tests
+        run: bash test/run_release_json_parser_test.sh

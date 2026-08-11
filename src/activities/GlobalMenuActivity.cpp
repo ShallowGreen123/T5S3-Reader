@@ -1,6 +1,6 @@
 #include "GlobalMenuActivity.h"
 
-#include <BoardT5S3.h>
+#include <Board.h>
 #include <GfxRenderer.h>
 #include <I18n.h>
 
@@ -21,6 +21,8 @@ constexpr int kCornerRadius = 12;
 constexpr int kArrowRegionHeight = 44;  // band below the panel that holds the "hide" up-arrow
 constexpr int kArrowHalfWidth = 20;
 constexpr int kArrowHeight = 18;
+
+bool hasBacklight() { return Board::capabilities().hasBacklight; }
 }  // namespace
 
 GlobalMenuActivity::GlobalMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
@@ -29,6 +31,9 @@ GlobalMenuActivity::GlobalMenuActivity(GfxRenderer& renderer, MappedInputManager
 
 void GlobalMenuActivity::onEnter() {
   Activity::onEnter();
+  if (!hasBacklight()) {
+    selectedIndex = BUTTON_SHUTDOWN;
+  }
   requestUpdate();
 }
 
@@ -37,7 +42,8 @@ void GlobalMenuActivity::getPanelLayout(int& panelX, int& panelY, int& panelW, i
   panelX = kPanelMargin;
   panelY = kPanelTopGap;
   panelW = screenW - kPanelMargin * 2;
-  panelH = kInnerPad * 2 + BUTTON_COUNT * kButtonHeight + (BUTTON_COUNT - 1) * kButtonGap;
+  const int visibleButtonCount = hasBacklight() ? BUTTON_COUNT : 1;
+  panelH = kInnerPad * 2 + visibleButtonCount * kButtonHeight + (visibleButtonCount - 1) * kButtonGap;
 }
 
 void GlobalMenuActivity::getButtonRect(int index, int& x, int& y, int& w, int& h) const {
@@ -46,7 +52,8 @@ void GlobalMenuActivity::getButtonRect(int index, int& x, int& y, int& w, int& h
   x = panelX + kInnerPad;
   w = panelW - kInnerPad * 2;
   h = kButtonHeight;
-  y = panelY + kInnerPad + index * (kButtonHeight + kButtonGap);
+  const int row = hasBacklight() ? index : 0;
+  y = panelY + kInnerPad + row * (kButtonHeight + kButtonGap);
 }
 
 void GlobalMenuActivity::loop() {
@@ -59,7 +66,9 @@ void GlobalMenuActivity::loop() {
     requestUpdate();
   };
 
-  if (selectedIndex == BUTTON_BACKLIGHT) {
+  if (!hasBacklight()) {
+    selectedIndex = BUTTON_SHUTDOWN;
+  } else if (selectedIndex == BUTTON_BACKLIGHT) {
     // While the backlight button is focused, Left/Right adjust brightness and only
     // Up/Down navigate, so the two functions don't collide on the same buttons.
     buttonNavigator.onPressAndContinuous({MappedInputManager::Button::Right},
@@ -96,12 +105,14 @@ bool GlobalMenuActivity::onTouchTap(int16_t x, int16_t y) {
 
   // Backlight button: left half decreases, right half increases (the -/+ glyphs are affordances).
   int bx, by, bw, bh;
-  getButtonRect(BUTTON_BACKLIGHT, bx, by, bw, bh);
-  if (x >= bx && x < bx + bw && y >= by && y < by + bh) {
-    selectedIndex = BUTTON_BACKLIGHT;
-    applyBacklightLevel(x < bx + bw / 2 ? SETTINGS.backlightLevel - 1 : SETTINGS.backlightLevel + 1);
-    requestUpdate();
-    return true;
+  if (hasBacklight()) {
+    getButtonRect(BUTTON_BACKLIGHT, bx, by, bw, bh);
+    if (x >= bx && x < bx + bw && y >= by && y < by + bh) {
+      selectedIndex = BUTTON_BACKLIGHT;
+      applyBacklightLevel(x < bx + bw / 2 ? SETTINGS.backlightLevel - 1 : SETTINGS.backlightLevel + 1);
+      requestUpdate();
+      return true;
+    }
   }
 
   getButtonRect(BUTTON_SHUTDOWN, bx, by, bw, bh);
@@ -125,13 +136,16 @@ void GlobalMenuActivity::activateSelection() {
 }
 
 void GlobalMenuActivity::applyBacklightLevel(int level) {
+  if (!hasBacklight()) {
+    return;
+  }
   if (level < 0) level = 0;
   if (level > 10) level = 10;
   if (level == SETTINGS.backlightLevel) {
     return;
   }
   SETTINGS.backlightLevel = static_cast<uint8_t>(level);
-  BoardT5S3::setBacklightLevel(SETTINGS.backlightLevel);
+  Board::setBacklightLevel(SETTINGS.backlightLevel);
   SETTINGS.saveToFile();
   requestUpdate();
 }
@@ -204,8 +218,10 @@ void GlobalMenuActivity::render(RenderLock&&) {
   renderer.fillRect(0, 0, screenW, dividerY, false);
 
   int bx, by, bw, bh;
-  getButtonRect(BUTTON_BACKLIGHT, bx, by, bw, bh);
-  drawBacklightButton(bx, by, bw, bh, selectedIndex == BUTTON_BACKLIGHT, SETTINGS.backlightLevel);
+  if (hasBacklight()) {
+    getButtonRect(BUTTON_BACKLIGHT, bx, by, bw, bh);
+    drawBacklightButton(bx, by, bw, bh, selectedIndex == BUTTON_BACKLIGHT, SETTINGS.backlightLevel);
+  }
 
   getButtonRect(BUTTON_SHUTDOWN, bx, by, bw, bh);
   drawActionButton(bx, by, bw, bh, selectedIndex == BUTTON_SHUTDOWN, I18N.get(StrId::STR_SHUTDOWN));

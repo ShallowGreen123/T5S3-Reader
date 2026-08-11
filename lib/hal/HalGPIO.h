@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
-#include <BoardT5S3.h>
+#include <Board.h>
 
 class HalGPIO {
  public:
@@ -11,7 +11,7 @@ class HalGPIO {
   };
 
  private:
-  BoardT5S3::GT911Touch touch;
+  Board::GT911Touch touch;
 
   uint8_t currentState = 0;
   uint8_t lastState = 0;
@@ -44,14 +44,15 @@ class HalGPIO {
   void readTouchState();
 
  public:
-  enum class DeviceType : uint8_t { T5S3 };
+  enum class DeviceType : uint8_t { T5S3Pro, LilyGoEPD47 };
 
   HalGPIO() = default;
 
   inline bool deviceIsX3() const { return false; }
   inline bool deviceIsX4() const { return false; }
-  inline bool deviceIsT5S3() const { return true; }
-  inline const char* getDeviceName() const { return "T5S3"; }
+  inline bool deviceIsT5S3() const { return Device == DeviceType::T5S3Pro; }
+  inline bool deviceIsEpd47() const { return Device == DeviceType::LilyGoEPD47; }
+  inline const char* getDeviceName() const { return Board::displayName(); }
 
   void begin();
   bool isTouchAvailable() const { return touch.isAvailable(); }
@@ -91,6 +92,11 @@ class HalGPIO {
   static constexpr uint8_t BTN_PCA = 7;
 
  private:
+#if defined(BOARD_LILYGO_EPD47_S3)
+  static constexpr DeviceType Device = DeviceType::LilyGoEPD47;
+#else
+  static constexpr DeviceType Device = DeviceType::T5S3Pro;
+#endif
   static constexpr unsigned long DEBOUNCE_DELAY = 5;
 };
 

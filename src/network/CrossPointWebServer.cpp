@@ -1,7 +1,7 @@
 #include "CrossPointWebServer.h"
 
 #include <ArduinoJson.h>
-#include <BoardT5S3.h>
+#include <Board.h>
 #include <Epub.h>
 #include <FsHelpers.h>
 #include <HalClock.h>
@@ -450,6 +450,7 @@ void CrossPointWebServer::handleStatus() const {
 
   JsonDocument doc;
   doc["version"] = CROSSPOINT_VERSION;
+  doc["board"] = Board::id();
   doc["ip"] = ipAddr;
   doc["mode"] = apMode ? "AP" : "STA";
   doc["rssi"] = apMode ? 0 : WiFi.RSSI();
@@ -1359,7 +1360,7 @@ void CrossPointWebServer::handlePostSettings() {
   }
 
   if (backlightChanged) {
-    BoardT5S3::setBacklightLevel(SETTINGS.backlightLevel);
+    Board::setBacklightLevel(SETTINGS.backlightLevel);
   }
 
   SETTINGS.saveToFile();
