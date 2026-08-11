@@ -28,7 +28,11 @@ If the time is reset after being reinitialized, an operation that does not
 rely on the public network NTP can be performed:
 - Connect the device to WiFi, and open the device's web page once using a mobile phone or computer. `http://deviceIP/`, `/files/`, `/settings/`, and `/fonts` are all available.
 
-
+- Quick Menu Feature #15
+- System Chapter Font Footer Fix #16
+- System-wide Hide Clock Option #17
+- Flip up/down buttons and screen option #18
+- Resume Book on Wake Fix + Making Optional #19
 
 
 
