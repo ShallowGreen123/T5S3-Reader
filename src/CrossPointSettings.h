@@ -187,12 +187,17 @@ class CrossPointSettings {
 
   // Sleep screen settings
   uint8_t sleepScreen = DARK;
+  // Power off screen settings (same options/modes as sleepScreen)
+  uint8_t powerOffScreen = DARK;
   // Front-light/backlight brightness level (0 = off, 10 = max)
   uint8_t backlightLevel = 2;
   // Sleep screen cover mode settings
   uint8_t sleepScreenCoverMode = FIT;
   // Sleep screen cover filter
   uint8_t sleepScreenCoverFilter = NO_FILTER;
+  // Power off screen cover mode/filter (same options as sleepScreenCoverMode/Filter)
+  uint8_t powerOffScreenCoverMode = FIT;
+  uint8_t powerOffScreenCoverFilter = NO_FILTER;
   // Status bar settings (statusBar retained for migration only)
   uint8_t statusBar = FULL;
   uint8_t statusBarChapterPageCount = 1;

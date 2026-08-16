@@ -21,6 +21,12 @@ class SleepActivity final : public Activity {
   void renderBitmapSleepScreen(const Bitmap& bitmap) const;
   void renderBlankSleepScreen() const;
 
+  // Sleep and power-off each have their own screen-mode/cover-mode/cover-filter setting;
+  // these pick the right one.
+  uint8_t activeScreenMode() const;
+  uint8_t activeCoverMode() const;
+  uint8_t activeCoverFilter() const;
+
   // True when this screen is shown while powering off rather than going to sleep;
   // changes the wake instructions shown on the default (Dark/Light) sleep screen.
   const bool poweringOff;

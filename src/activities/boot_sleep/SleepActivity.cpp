@@ -30,7 +30,7 @@ void SleepActivity::onEnter() {
     GUI.drawPopup(renderer, popupText);
   }
 
-  switch (SETTINGS.sleepScreen) {
+  switch (activeScreenMode()) {
     case (CrossPointSettings::SLEEP_SCREEN_MODE::BLANK):
       return renderBlankSleepScreen();
     case (CrossPointSettings::SLEEP_SCREEN_MODE::CUSTOM):
@@ -46,6 +46,16 @@ void SleepActivity::onEnter() {
     default:
       return renderDefaultSleepScreen();
   }
+}
+
+uint8_t SleepActivity::activeScreenMode() const { return poweringOff ? SETTINGS.powerOffScreen : SETTINGS.sleepScreen; }
+
+uint8_t SleepActivity::activeCoverMode() const {
+  return poweringOff ? SETTINGS.powerOffScreenCoverMode : SETTINGS.sleepScreenCoverMode;
+}
+
+uint8_t SleepActivity::activeCoverFilter() const {
+  return poweringOff ? SETTINGS.powerOffScreenCoverFilter : SETTINGS.sleepScreenCoverFilter;
 }
 
 void SleepActivity::renderCustomSleepScreen() const {
@@ -166,7 +176,7 @@ void SleepActivity::renderDefaultSleepScreen() const {
 #endif
 
   // Make sleep screen dark unless light is selected in settings
-  if (SETTINGS.sleepScreen != CrossPointSettings::SLEEP_SCREEN_MODE::LIGHT) {
+  if (activeScreenMode() != CrossPointSettings::SLEEP_SCREEN_MODE::LIGHT) {
     renderer.invertScreen();
   }
 
@@ -188,7 +198,7 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap) const {
     LOG_DBG("SLP", "bitmap ratio: %f, screen ratio: %f", ratio, screenRatio);
     if (ratio > screenRatio) {
       // image wider than viewport ratio, scaled down image needs to be centered vertically
-      if (SETTINGS.sleepScreenCoverMode == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP) {
+      if (activeCoverMode() == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP) {
         cropX = 1.0f - (screenRatio / ratio);
         LOG_DBG("SLP", "Cropping bitmap x: %f", cropX);
         ratio = (1.0f - cropX) * static_cast<float>(bitmap.getWidth()) / static_cast<float>(bitmap.getHeight());
@@ -198,7 +208,7 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap) const {
       LOG_DBG("SLP", "Centering with ratio %f to y=%d", ratio, y);
     } else {
       // image taller than viewport ratio, scaled down image needs to be centered horizontally
-      if (SETTINGS.sleepScreenCoverMode == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP) {
+      if (activeCoverMode() == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP) {
         cropY = 1.0f - (ratio / screenRatio);
         LOG_DBG("SLP", "Cropping bitmap y: %f", cropY);
         ratio = static_cast<float>(bitmap.getWidth()) / ((1.0f - cropY) * static_cast<float>(bitmap.getHeight()));
@@ -217,11 +227,11 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap) const {
   renderer.clearScreen();
 
   const bool hasGreyscale = bitmap.hasGreyscale() &&
-                            SETTINGS.sleepScreenCoverFilter == CrossPointSettings::SLEEP_SCREEN_COVER_FILTER::NO_FILTER;
+                            activeCoverFilter() == CrossPointSettings::SLEEP_SCREEN_COVER_FILTER::NO_FILTER;
 
   renderer.drawBitmap(bitmap, x, y, pageWidth, pageHeight, cropX, cropY);
 
-  if (SETTINGS.sleepScreenCoverFilter == CrossPointSettings::SLEEP_SCREEN_COVER_FILTER::INVERTED_BLACK_AND_WHITE) {
+  if (activeCoverFilter() == CrossPointSettings::SLEEP_SCREEN_COVER_FILTER::INVERTED_BLACK_AND_WHITE) {
     renderer.invertScreen();
   }
 
@@ -247,7 +257,7 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap) const {
 
 void SleepActivity::renderCoverSleepScreen() const {
   void (SleepActivity::*renderNoCoverSleepScreen)() const;
-  switch (SETTINGS.sleepScreen) {
+  switch (activeScreenMode()) {
     case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER_CUSTOM):
       renderNoCoverSleepScreen = &SleepActivity::renderCustomSleepScreen;
       break;
@@ -263,7 +273,7 @@ void SleepActivity::renderCoverSleepScreen() const {
   }
 
   std::string coverBmpPath;
-  bool cropped = SETTINGS.sleepScreenCoverMode == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP;
+  bool cropped = activeCoverMode() == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP;
 
   // Check if the current book is XTC, TXT, or EPUB
   if (FsHelpers::hasXtcExtension(APP_STATE.openEpubPath)) {
