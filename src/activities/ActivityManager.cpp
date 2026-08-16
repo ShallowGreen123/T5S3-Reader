@@ -286,8 +286,8 @@ void ActivityManager::goToReader(std::string path, const HalDisplay::RefreshMode
                   replaceRefreshMode);
 }
 
-void ActivityManager::goToSleep() {
-  replaceActivity(std::make_unique<SleepActivity>(renderer, mappedInput));
+void ActivityManager::goToSleep(bool poweringOff) {
+  replaceActivity(std::make_unique<SleepActivity>(renderer, mappedInput, poweringOff));
   loop();  // Important: sleep screen must be rendered immediately, the caller will go to sleep right after this returns
 }
 

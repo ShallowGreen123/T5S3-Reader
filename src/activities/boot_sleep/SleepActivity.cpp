@@ -3,6 +3,7 @@
 #include <Epub.h>
 #include <FsHelpers.h>
 #include <GfxRenderer.h>
+#include <HalGPIO.h>
 #include <HalStorage.h>
 #include <I18n.h>
 #include <Txt.h>
@@ -18,13 +19,15 @@
 void SleepActivity::onEnter() {
   Activity::onEnter();
 
+  const char* popupText = poweringOff ? tr(STR_SHUTTING_DOWN) : tr(STR_ENTERING_SLEEP);
+
   // Show popup with reader orientation only when going to sleep from reader
   if (APP_STATE.lastSleepFromReader) {
     ReaderUtils::applyOrientation(renderer, SETTINGS.orientation);
-    GUI.drawPopup(renderer, tr(STR_ENTERING_SLEEP));
+    GUI.drawPopup(renderer, popupText);
     renderer.setOrientation(GfxRenderer::Orientation::Portrait);
   } else {
-    GUI.drawPopup(renderer, tr(STR_ENTERING_SLEEP));
+    GUI.drawPopup(renderer, popupText);
   }
 
   switch (SETTINGS.sleepScreen) {
@@ -146,8 +149,21 @@ void SleepActivity::renderDefaultSleepScreen() const {
   renderer.clearScreen();
   renderer.drawImage(Logo120, (pageWidth - 120) / 2, (pageHeight - 120) / 2, 120, 120);
   renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 + 70, tr(STR_CROSSPOINT), true, EpdFontFamily::BOLD);
-  renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 95, tr(STR_SLEEPING));
-  renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 120, "Tap screen to wake");
+  if (poweringOff) {
+    renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 95,
+                              gpio.deviceIsEpd47() ? "Press PWR to power on" : "Hold PWR to power on");
+  } else {
+    renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 95, tr(STR_SLEEPING));
+    renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 120, "Tap screen to wake");
+  }
+
+#ifdef ENABLE_SERIAL_LOG
+  // Debug-only: surface why a Cover sleep screen fell back to the default logo,
+  // so this is visible on-device without needing a serial connection.
+  if (!coverFallbackReason.empty()) {
+    renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 145, coverFallbackReason.c_str());
+  }
+#endif
 
   // Make sleep screen dark unless light is selected in settings
   if (SETTINGS.sleepScreen != CrossPointSettings::SLEEP_SCREEN_MODE::LIGHT) {
@@ -241,6 +257,8 @@ void SleepActivity::renderCoverSleepScreen() const {
   }
 
   if (APP_STATE.openEpubPath.empty()) {
+    LOG_ERR("SLP", "Cover sleep screen: no book has been opened yet");
+    coverFallbackReason = "No book open";
     return (this->*renderNoCoverSleepScreen)();
   }
 
@@ -253,11 +271,13 @@ void SleepActivity::renderCoverSleepScreen() const {
     Xtc lastXtc(APP_STATE.openEpubPath, "/.crosspoint");
     if (!lastXtc.load()) {
       LOG_ERR("SLP", "Failed to load last XTC");
+      coverFallbackReason = "Cover: XTC load failed";
       return (this->*renderNoCoverSleepScreen)();
     }
 
     if (!lastXtc.generateCoverBmp()) {
       LOG_ERR("SLP", "Failed to generate XTC cover bmp");
+      coverFallbackReason = "Cover: XTC bmp gen failed";
       return (this->*renderNoCoverSleepScreen)();
     }
 
@@ -267,11 +287,13 @@ void SleepActivity::renderCoverSleepScreen() const {
     Txt lastTxt(APP_STATE.openEpubPath, "/.crosspoint");
     if (!lastTxt.load()) {
       LOG_ERR("SLP", "Failed to load last TXT");
+      coverFallbackReason = "Cover: TXT load failed";
       return (this->*renderNoCoverSleepScreen)();
     }
 
     if (!lastTxt.generateCoverBmp()) {
       LOG_ERR("SLP", "No cover image found for TXT file");
+      coverFallbackReason = "Cover: no TXT cover image";
       return (this->*renderNoCoverSleepScreen)();
     }
 
@@ -282,16 +304,20 @@ void SleepActivity::renderCoverSleepScreen() const {
     // Skip loading css since we only need metadata here
     if (!lastEpub.load(true, true)) {
       LOG_ERR("SLP", "Failed to load last epub");
+      coverFallbackReason = "Cover: epub load failed";
       return (this->*renderNoCoverSleepScreen)();
     }
 
     if (!lastEpub.generateCoverBmp(cropped)) {
       LOG_ERR("SLP", "Failed to generate cover bmp");
+      coverFallbackReason = "Cover: bmp gen failed";
       return (this->*renderNoCoverSleepScreen)();
     }
 
     coverBmpPath = lastEpub.getCoverBmpPath(cropped);
   } else {
+    LOG_ERR("SLP", "Cover sleep screen: unsupported book type: %s", APP_STATE.openEpubPath.c_str());
+    coverFallbackReason = "Cover: unsupported book type";
     return (this->*renderNoCoverSleepScreen)();
   }
 
@@ -303,6 +329,11 @@ void SleepActivity::renderCoverSleepScreen() const {
       renderBitmapSleepScreen(bitmap);
       return;
     }
+    LOG_ERR("SLP", "Cover bmp failed to parse: %s", coverBmpPath.c_str());
+    coverFallbackReason = "Cover: bmp parse failed";
+  } else {
+    LOG_ERR("SLP", "Cover bmp failed to open: %s", coverBmpPath.c_str());
+    coverFallbackReason = "Cover: bmp open failed";
   }
 
   return (this->*renderNoCoverSleepScreen)();
