@@ -142,21 +142,36 @@ void BmpViewerActivity::doSetSleepCover() {
   GUI.drawPopup(renderer, tr(STR_LOADING_POPUP));
 
   bool success = false;
-  FsFile inFile, outFile;
-  if (Storage.openFileForRead("BMP", filePath, inFile)) {
-    if (Storage.openFileForWrite("BMP", "/sleep.bmp", outFile)) {
-      char buffer[2048];
-      int bytesRead;
-      success = true;
-      while ((bytesRead = inFile.read(buffer, sizeof(buffer))) > 0) {
-        if (outFile.write(buffer, bytesRead) != bytesRead) {
-          success = false;
-          break;
+
+  if (filePath == "/sleep.bmp") {
+    // Already the active custom sleep cover; no need to copy it onto itself
+    // (doing so would truncate the file while it's still open for reading).
+    success = true;
+  } else {
+    FsFile inFile, outFile;
+    if (Storage.openFileForRead("BMP", filePath, inFile)) {
+      // Write to a temp file first so a failed/interrupted copy never leaves
+      // /sleep.bmp truncated or corrupted.
+      if (Storage.openFileForWrite("BMP", "/sleep.bmp.tmp", outFile)) {
+        char buffer[2048];
+        int bytesRead;
+        success = true;
+        while ((bytesRead = inFile.read(buffer, sizeof(buffer))) > 0) {
+          if (outFile.write(buffer, bytesRead) != bytesRead) {
+            success = false;
+            break;
+          }
+        }
+        outFile.close();
+        if (success) {
+          Storage.remove("/sleep.bmp");
+          success = Storage.rename("/sleep.bmp.tmp", "/sleep.bmp");
+        } else {
+          Storage.remove("/sleep.bmp.tmp");
         }
       }
-      outFile.close();
+      inFile.close();
     }
-    inFile.close();
   }
 
   if (success) {
@@ -166,6 +181,7 @@ void BmpViewerActivity::doSetSleepCover() {
   } else {
     GUI.drawPopup(renderer, tr(STR_FAILED_LOWER));
   }
+
 
   delay(1000);
   onEnter();

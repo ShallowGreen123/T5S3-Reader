@@ -94,7 +94,7 @@ class ActivityManager {
   void goToRecentBooks();
   void goToBrowser();
   void goToReader(std::string path, HalDisplay::RefreshMode replaceRefreshMode = HalDisplay::HALF_REFRESH);
-  void goToSleep();
+  void goToSleep(bool poweringOff = false);
   void goToBoot();
   void goToFullScreenMessage(std::string message, EpdFontFamily::Style style = EpdFontFamily::REGULAR);
   void goToCrashReport();
