@@ -4,6 +4,7 @@
 #include <HalStorage.h>
 #include <Logging.h>
 #include <ObfuscationUtils.h>
+#include <TimeZoneCatalog.h>
 
 #include <cstring>
 #include <string>
@@ -184,6 +185,24 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool*
     if (info.stringOffset) {
       const char* strPtr = (const char*)&s + info.stringOffset;
       const std::string fieldDefault = strPtr;  // current buffer = struct-initializer default
+      char* destPtr = (char*)&s + info.stringOffset;
+      if (info.stringMaxLen == 0) {
+        LOG_ERR("CPS", "Misconfigured SettingInfo: stringMaxLen is 0 for key '%s'", info.key);
+        destPtr[0] = '\0';
+        if (needsResave) *needsResave = true;
+        continue;
+      }
+      if (info.type == SettingType::TIMEZONE) {
+        std::string val;
+        if (doc[info.key].is<int>() || doc[info.key].is<unsigned int>() || doc[info.key].is<long>()) {
+          val = TimeZoneCatalog::idFromLegacyIndex(static_cast<uint8_t>(doc[info.key].as<int>()));
+          if (needsResave) *needsResave = true;
+        } else {
+          val = doc[info.key] | fieldDefault;
+        }
+        TimeZoneCatalog::copyId(destPtr, info.stringMaxLen, val.c_str());
+        continue;
+      }
       std::string val;
       if (info.obfuscated) {
         bool ok = false;
@@ -194,13 +213,6 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool*
         }
       } else {
         val = doc[info.key] | fieldDefault;
-      }
-      char* destPtr = (char*)&s + info.stringOffset;
-      if (info.stringMaxLen == 0) {
-        LOG_ERR("CPS", "Misconfigured SettingInfo: stringMaxLen is 0 for key '%s'", info.key);
-        destPtr[0] = '\0';
-        if (needsResave) *needsResave = true;
-        continue;
       }
       strncpy(destPtr, val.c_str(), info.stringMaxLen - 1);
       destPtr[info.stringMaxLen - 1] = '\0';

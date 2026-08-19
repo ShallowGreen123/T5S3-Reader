@@ -7,24 +7,9 @@ extern HalClock halClock;
 
 class HalClock {
  public:
-  enum TIME_ZONE : uint8_t {
-    TIME_ZONE_UTC = 0,
-    TIME_ZONE_SHANGHAI = 1,
-    TIME_ZONE_LONDON = 2,
-    TIME_ZONE_BERLIN = 3,
-    TIME_ZONE_HELSINKI = 4,
-    TIME_ZONE_NEW_YORK = 5,
-    TIME_ZONE_CHICAGO = 6,
-    TIME_ZONE_DENVER = 7,
-    TIME_ZONE_PHOENIX = 8,
-    TIME_ZONE_LOS_ANGELES = 9,
-    TIME_ZONE_ANCHORAGE = 10,
-    TIME_ZONE_HONOLULU = 11,
-    TIME_ZONE_COUNT
-  };
-
   void begin();
-  void configure(uint8_t timeZone, bool rtcStoresUtc, uint8_t rtcVariantHint = 0, uint32_t rtcReferenceEpoch = 0);
+  void configure(const char* timeZoneId, bool rtcStoresUtc, uint8_t rtcVariantHint = 0,
+                 uint32_t rtcReferenceEpoch = 0);
   bool isAvailable() const { return available_; }
   uint8_t getVariantHint() const;
   bool getRtcStoresUtc() const { return rtcStoresUtc_; }
@@ -67,7 +52,7 @@ class HalClock {
 
   ChipVariant variant_ = ChipVariant::Unknown;
   bool available_ = false;
-  uint8_t timeZone_ = TIME_ZONE_UTC;
+  const char* posixRule_ = "UTC0";
   bool rtcStoresUtc_ = false;
   uint32_t rtcReferenceEpoch_ = 0;
 };

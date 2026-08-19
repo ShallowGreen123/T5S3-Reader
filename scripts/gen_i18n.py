@@ -29,11 +29,11 @@ Examples:
     python gen_i18n.py --strip-unused --src-dirs src lib/EpdFont
 """
 
-import sys
+import argparse
 import os
 import re
+import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
 
 
 # ---------------------------------------------------------------------------
@@ -47,7 +47,7 @@ def _unescape_yaml_value(raw: str, filepath: str = "", line_num: int = 0) -> str
 
     Recognized escapes:  \\\\  →  \\       \\"  →  "       \\n  →  newline
     """
-    result: List[str] = []
+    result: list[str] = []
     i = 0
     while i < len(raw):
         if raw[i] == "\\" and i + 1 < len(raw):
@@ -67,7 +67,7 @@ def _unescape_yaml_value(raw: str, filepath: str = "", line_num: int = 0) -> str
     return "".join(result)
 
 
-def parse_yaml_file(filepath: str) -> Dict[str, str]:
+def parse_yaml_file(filepath: str) -> dict[str, str]:
     """
     Parse a simple YAML file of the form:
         key: "value"
@@ -113,7 +113,7 @@ def parse_yaml_file(filepath: str) -> Dict[str, str]:
 def load_translations(
     translations_dir: str,
     verbose: bool = False,
-) -> Tuple[List[str], List[str], List[str], Dict[str, List[str]], List[Set[str]]]:
+) -> tuple[list[str], list[str], list[str], dict[str, list[str]], list[set[str]]]:
     """
     Read every YAML file in *translations_dir* and return:
         language_codes   e.g. ["EN", "ES", ...]
@@ -127,12 +127,12 @@ def load_translations(
     if not yaml_dir.is_dir():
         raise FileNotFoundError(f"Translations directory not found: {translations_dir}")
 
-    yaml_files = sorted(yaml_dir.glob("*.yaml"))
+    yaml_files = sorted(path for path in yaml_dir.glob("*.yaml") if not path.name.startswith("."))
     if not yaml_files:
         raise FileNotFoundError(f"No .yaml files found in {translations_dir}")
 
     # Parse every file
-    parsed: Dict[str, Dict[str, str]] = {}
+    parsed: dict[str, dict[str, str]] = {}
     for yf in yaml_files:
         parsed[yf.name] = parse_yaml_file(str(yf))
 
@@ -146,8 +146,8 @@ def load_translations(
     if english_file is None:
         raise ValueError("No YAML file with _language_code: EN found")
 
-    duplicate_orders: Dict[str, List[str]] = {}
-    order_to_files: Dict[str, List[str]] = {}
+    duplicate_orders: dict[str, list[str]] = {}
+    order_to_files: dict[str, list[str]] = {}
     for fname, data in parsed.items():
         order = data.get("_order")
         if not order:
@@ -172,7 +172,7 @@ def load_translations(
         )
 
     # Order: English first, then by _order metadata (falls back to filename)
-    def sort_key(fname: str) -> Tuple[int, int, str]:
+    def sort_key(fname: str) -> tuple[int, int, str]:
         """English always first (0), then by _order, then by filename."""
         if fname == english_file:
             return (0, 0, fname)
@@ -186,8 +186,8 @@ def load_translations(
     ordered_files = sorted(parsed, key=sort_key)
 
     # Extract metadata
-    language_codes: List[str] = []
-    language_names: List[str] = []
+    language_codes: list[str] = []
+    language_names: list[str] = []
     for fname in ordered_files:
         data = parsed[fname]
         code = data.get("_language_code")
@@ -207,10 +207,10 @@ def load_translations(
             raise ValueError(f"Invalid C++ identifier in English file: '{key}'")
 
     # Build translations dict, filling missing keys from English
-    inherited_sets: List[Set[str]] = [set() for _ in ordered_files]
-    translations: Dict[str, List[str]] = {}
+    inherited_sets: list[set[str]] = [set() for _ in ordered_files]
+    translations: dict[str, list[str]] = {}
     for key in string_keys:
-        row: List[str] = []
+        row: list[str] = []
         for lang_idx, fname in enumerate(ordered_files):
             data = parsed[fname]
             value = data.get(key, "")
@@ -246,13 +246,13 @@ def load_translations(
 # Unused-string detection
 # ---------------------------------------------------------------------------
 
-_GENERATED_FILENAMES: Set[str] = {"I18nKeys.h", "I18nStrings.h", "I18nStrings.cpp"}
+_GENERATED_FILENAMES: set[str] = {"I18nKeys.h", "I18nStrings.h", "I18nStrings.cpp"}
 
 
 def find_used_string_keys(
-    src_dirs: List[str],
-    skip_filenames: Optional[Set[str]] = None,
-) -> Set[str]:
+    src_dirs: list[str],
+    skip_filenames: set[str] | None = None,
+) -> set[str]:
     """
     Scan C/C++ source files under *src_dirs* for STR_* identifiers.
 
@@ -265,7 +265,7 @@ def find_used_string_keys(
         skip_filenames = _GENERATED_FILENAMES
 
     pattern = re.compile(r"\bSTR_[A-Za-z0-9_]+\b")
-    used: Set[str] = set()
+    used: set[str] = set()
 
     for src_dir in src_dirs:
         p = Path(src_dir)
@@ -287,9 +287,9 @@ def find_used_string_keys(
 
 
 def report_unused_keys(
-    string_keys: List[str],
-    used_keys: Set[str],
-) -> List[str]:
+    string_keys: list[str],
+    used_keys: set[str],
+) -> list[str]:
     """Return a sorted list of keys from *string_keys* absent in *used_keys*."""
     return [k for k in sorted(string_keys) if k not in used_keys]
 
@@ -299,7 +299,7 @@ def report_unused_keys(
 # ---------------------------------------------------------------------------
 
 
-def escape_cpp_string(s: str) -> List[str]:
+def escape_cpp_string(s: str) -> list[str]:
     r"""
     Convert *s* into one or more C++ string literal segments.
 
@@ -318,8 +318,8 @@ def escape_cpp_string(s: str) -> List[str]:
     # Build a flat list of "tokens", where each token is either a regular
     # character sequence or a hex escape.  A segment break happens after
     # every hex escape.
-    segments: List[str] = []
-    current: List[str] = []
+    segments: list[str] = []
+    current: list[str] = []
     i = 0
 
     def _flush() -> None:
@@ -359,7 +359,7 @@ def escape_cpp_string(s: str) -> List[str]:
     return segments
 
 
-def format_cpp_string_literal(segments: List[str], indent: str = "    ") -> List[str]:
+def format_cpp_string_literal(segments: list[str], indent: str = "    ") -> list[str]:
     """
     Format string segments (from escape_cpp_string) as indented C++ string
     literal lines, each wrapped in quotes.
@@ -369,7 +369,7 @@ def format_cpp_string_literal(segments: List[str], indent: str = "    ") -> List
     # Using 113 to match clang-format exactly (120 - 4 - 2 - 1)
     MAX_CONTENT_LEN = 113
 
-    lines: List[str] = []
+    lines: list[str] = []
 
     for seg in segments:
         # Short segment (e.g. hex escape or short text)
@@ -421,7 +421,7 @@ def format_cpp_string_literal(segments: List[str], indent: str = "    ") -> List
 # ---------------------------------------------------------------------------
 
 
-def compute_character_set(translations: Dict[str, List[str]], lang_index: int) -> str:
+def compute_character_set(translations: dict[str, list[str]], lang_index: int) -> str:
     """Return a sorted string of every unique character used in a language."""
     chars = set()
     for values in translations.values():
@@ -436,14 +436,14 @@ def compute_character_set(translations: Dict[str, List[str]], lang_index: int) -
 
 
 def generate_keys_header(
-    languages: List[str],
-    language_names: List[str],
-    string_keys: List[str],
+    languages: list[str],
+    language_names: list[str],
+    string_keys: list[str],
     output_path: str,
     verbose: bool = False,
 ) -> None:
     """Generate I18nKeys.h."""
-    lines: List[str] = [
+    lines: list[str] = [
         "#pragma once",
         "#include <cstdint>",
         "",
@@ -569,13 +569,13 @@ def generate_keys_header(
 
 
 def generate_strings_header(
-    languages: List[str],
-    language_names: List[str],
+    languages: list[str],
+    language_names: list[str],
     output_path: str,
     verbose: bool = False,
 ) -> None:
     """Generate I18nStrings.h."""
-    lines: List[str] = [
+    lines: list[str] = [
         "#pragma once",
         '#include "I18nKeys.h"',
         "",
@@ -596,15 +596,15 @@ def generate_strings_header(
 
 
 def generate_strings_cpp(
-    languages: List[str],
-    language_names: List[str],
-    string_keys: List[str],
-    translations: Dict[str, List[str]],
+    languages: list[str],
+    language_names: list[str],
+    string_keys: list[str],
+    translations: dict[str, list[str]],
     output_path: str,
     verbose: bool = False,
 ) -> None:
     """Generate I18nStrings.cpp."""
-    lines: List[str] = [
+    lines: list[str] = [
         "// THIS FILE IS AUTO-GENERATED BY gen_i18n.py. DO NOT EDIT.",
         "// clang-format off",
         '#include "I18nStrings.h"',
@@ -645,7 +645,7 @@ def generate_strings_cpp(
     lines.append("")
 
     en_strings = [translations[key][0] for key in string_keys]
-    en_offsets: List[int] = []
+    en_offsets: list[int] = []
 
     for lang_idx, code in enumerate(languages):
         lang_strings = [translations[key][lang_idx] for key in string_keys]
@@ -653,7 +653,7 @@ def generate_strings_cpp(
 
         if is_english:
             # Precompute byte offsets (UTF-8 encoded, +1 per string for null terminator)
-            offsets: List[int] = []
+            offsets: list[int] = []
             current_offset = 0
             for s in lang_strings:
                 offsets.append(current_offset)
@@ -722,12 +722,12 @@ def generate_strings_cpp(
 
 
 def _print_language_table(
-    language_codes: List[str],
-    language_names: List[str],
-    inherited_sets: List[Set[str]],
-    string_keys: List[str],
-    unused_keys: Set[str],
-    data_sizes: List[int],
+    language_codes: list[str],
+    language_names: list[str],
+    inherited_sets: list[set[str]],
+    string_keys: list[str],
+    unused_keys: set[str],
+    data_sizes: list[int],
 ) -> None:
     """Print a per-language summary table."""
     total = len(string_keys)
@@ -780,7 +780,7 @@ def _print_language_table(
     )
 
 
-def _append_string_data_entry(lines: List[str], text: str) -> None:
+def _append_string_data_entry(lines: list[str], text: str) -> None:
     """
     Escape *text*, append a \\0 null separator, and format as indented C++
     string literal lines for inclusion in a flat char data array blob.
@@ -796,7 +796,7 @@ def _append_string_data_entry(lines: List[str], text: str) -> None:
     lines.extend(format_cpp_string_literal(segments))
 
 
-def _append_string_entry(lines: List[str], text: str, comment: str = "") -> None:
+def _append_string_entry(lines: list[str], text: str, comment: str = "") -> None:
     """Escape *text*, format as indented C++ lines, append comma (and optional comment)."""
     segments = escape_cpp_string(text)
     formatted = format_cpp_string_literal(segments)
@@ -805,7 +805,7 @@ def _append_string_entry(lines: List[str], text: str, comment: str = "") -> None
     lines.extend(formatted)
 
 
-def _write_file(path: str, lines: List[str], verbose: bool = False) -> None:
+def _write_file(path: str, lines: list[str], verbose: bool = False) -> None:
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(lines))
         f.write("\n")
@@ -819,9 +819,9 @@ def _write_file(path: str, lines: List[str], verbose: bool = False) -> None:
 
 
 def main(
-    translations_dir: Optional[str] = None,
-    output_dir: Optional[str] = None,
-    src_dirs: Optional[List[str]] = None,
+    translations_dir: str | None = None,
+    output_dir: str | None = None,
+    src_dirs: list[str] | None = None,
     strip_unused: bool = False,
     verbose: bool = False,
 ) -> None:
@@ -946,14 +946,12 @@ def main(
                 f"  Unused keys: {len(unused_set)} (pass --strip-unused to remove them)"
             )
 
-    except Exception as e:
+    except (ValueError, OSError) as e:
         print(f"\nError: {e}")
         sys.exit(1)
 
 
 if __name__ == "__main__":
-    import argparse
-
     parser = argparse.ArgumentParser(
         description="Generate I18n C++ files from per-language YAML translations."
     )

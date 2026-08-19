@@ -105,6 +105,15 @@
     .setting-control select {
       min-width: 160px;
     }
+    .tz-picker {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 220px;
+    }
+    .tz-picker select {
+      width: 100%;
+    }
     .setting-control input[type="text"],
     .setting-control input[type="password"] {
       width: 220px;
@@ -311,6 +320,7 @@
 <script>
   let allSettings = [];
   let originalValues = {};
+  let timezoneCatalog = { regions: [] };
 
   async function syncDeviceClockIfNeeded() {
     try {
@@ -371,6 +381,31 @@
       return html;
     }
 
+    if (setting.type === 'timezone') {
+      const selectedId = setting.value || 'UTC';
+      let selectedRegion = timezoneCatalog.regions.find(function(region) {
+        return region.cities.some(function(city) { return city.id === selectedId; });
+      }) || timezoneCatalog.regions[0];
+      if (!selectedRegion) {
+        return '';
+      }
+
+      let html = '<div class="tz-picker">';
+      html += '<select id="' + id + '-region" onchange="onTimeZoneRegionChange(\'' + setting.key + '\')">';
+      timezoneCatalog.regions.forEach(function(region) {
+        const selected = region.id === selectedRegion.id ? ' selected' : '';
+        html += '<option value="' + escapeHtml(region.id) + '"' + selected + '>' + escapeHtml(region.name) + '</option>';
+      });
+      html += '</select>';
+      html += '<select id="' + id + '" onchange="markChanged()">';
+      selectedRegion.cities.forEach(function(city) {
+        const selected = city.id === selectedId ? ' selected' : '';
+        html += '<option value="' + escapeHtml(city.id) + '"' + selected + '>' + escapeHtml(city.name) + '</option>';
+      });
+      html += '</select></div>';
+      return html;
+    }
+
     if (setting.type === 'value') {
       return '<input type="number" id="' + id + '" value="' + setting.value + '"' +
         ' min="' + setting.min + '" max="' + setting.max + '" step="' + setting.step + '"' +
@@ -397,6 +432,9 @@
     if (setting.type === 'enum') {
       return parseInt(el.value, 10);
     }
+    if (setting.type === 'timezone') {
+      return el.value;
+    }
     if (setting.type === 'value') {
       return parseInt(el.value, 10);
     }
@@ -410,13 +448,37 @@
     document.getElementById('saveBtn').disabled = false;
   }
 
+  function onTimeZoneRegionChange(key) {
+    const regionEl = document.getElementById('setting-' + key + '-region');
+    const cityEl = document.getElementById('setting-' + key);
+    if (!regionEl || !cityEl) {
+      return;
+    }
+    const region = timezoneCatalog.regions.find(function(item) { return item.id === regionEl.value; });
+    if (!region) {
+      return;
+    }
+    const previous = cityEl.value;
+    cityEl.innerHTML = region.cities.map(function(city) {
+      const selected = city.id === previous ? ' selected' : '';
+      return '<option value="' + escapeHtml(city.id) + '"' + selected + '>' + escapeHtml(city.name) + '</option>';
+    }).join('');
+    markChanged();
+  }
+
   async function loadSettings() {
     try {
-      const response = await fetch('/api/settings');
-      if (!response.ok) {
-        throw new Error('Failed to load settings: ' + response.status);
+      const [settingsResponse, timezoneResponse] = await Promise.all([
+        fetch('/api/settings'),
+        fetch('/api/timezones')
+      ]);
+      if (!settingsResponse.ok) {
+        throw new Error('Failed to load settings: ' + settingsResponse.status);
       }
-      allSettings = await response.json();
+      allSettings = await settingsResponse.json();
+      if (timezoneResponse.ok) {
+        timezoneCatalog = await timezoneResponse.json();
+      }
 
       // Store original values
       originalValues = {};

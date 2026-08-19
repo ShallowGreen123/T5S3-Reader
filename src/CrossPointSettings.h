@@ -132,22 +132,6 @@ class CrossPointSettings {
     REFRESH_FREQUENCY_COUNT
   };
 
-  enum TIME_ZONE {
-    TIME_ZONE_UTC = 0,
-    TIME_ZONE_SHANGHAI = 1,
-    TIME_ZONE_LONDON = 2,
-    TIME_ZONE_BERLIN = 3,
-    TIME_ZONE_HELSINKI = 4,
-    TIME_ZONE_NEW_YORK = 5,
-    TIME_ZONE_CHICAGO = 6,
-    TIME_ZONE_DENVER = 7,
-    TIME_ZONE_PHOENIX = 8,
-    TIME_ZONE_LOS_ANGELES = 9,
-    TIME_ZONE_ANCHORAGE = 10,
-    TIME_ZONE_HONOLULU = 11,
-    TIME_ZONE_COUNT
-  };
-
   enum READER_DISPLAY_MODE {
     READER_DISPLAY_QUALITY = 0,
     READER_DISPLAY_STANDARD = 1,
@@ -233,8 +217,8 @@ class CrossPointSettings {
   uint8_t paragraphAlignment = JUSTIFIED;
   // Auto-sleep timeout setting (default 10 minutes)
   uint8_t sleepTimeout = SLEEP_10_MIN;
-  // Local time zone used for UI rendering and legacy RTC migration.
-  uint8_t timeZone = TIME_ZONE_UTC;
+  // IANA time zone id used for UI rendering and legacy RTC migration.
+  char timeZoneId[40] = "UTC";
   // E-ink refresh frequency (default 15 pages)
   uint8_t refreshFrequency = REFRESH_15;
   // Reader-only display mode: quality, standard, or fast.

@@ -2,8 +2,7 @@
 
 #include <Board.h>
 #include <GfxRenderer.h>
-#include <HalClock.h>
-#include <Logging.h>
+#include <TimeZoneCatalog.h>
 
 #include "BatteryStatusActivity.h"
 #include "ButtonRemapActivity.h"
@@ -20,6 +19,7 @@
 #include "SdFirmwareUpdateActivity.h"
 #include "SettingsList.h"
 #include "StatusBarSettingsActivity.h"
+#include "TimeZoneSelectActivity.h"
 #include "activities/network/WifiSelectionActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -210,6 +210,10 @@ void SettingsActivity::toggleCurrentSetting() {
     } else {
       SETTINGS.*(setting.valuePtr) = currentValue + setting.valueRange.step;
     }
+  } else if (setting.type == SettingType::TIMEZONE) {
+    startActivityForResult(std::make_unique<TimeZoneSelectActivity>(renderer, mappedInput),
+                           [this](const ActivityResult&) { SETTINGS.saveToFile(); });
+    return;
   } else if (setting.type == SettingType::ACTION) {
     auto resultHandler = [this](const ActivityResult&) { SETTINGS.saveToFile(); };
 
@@ -265,11 +269,6 @@ void SettingsActivity::toggleCurrentSetting() {
   } else if (setting.valuePtr == &CrossPointSettings::flipUi) {
     // Apply the 180° flip immediately (forces a full refresh) so the change is visible now.
     display.setFlipOutput(SETTINGS.flipUi != 0);
-  } else if (setting.valuePtr == &CrossPointSettings::timeZone) {
-    halClock.configure(SETTINGS.timeZone, SETTINGS.rtcStoresUtc != 0, SETTINGS.rtcVariantHint,
-                       SETTINGS.rtcReferenceEpoch);
-    (void)halClock.syncSystemTimeFromRtc();
-    SETTINGS.rtcStoresUtc = halClock.getRtcStoresUtc() ? 1 : 0;
   }
 
   SETTINGS.saveToFile();
@@ -377,6 +376,10 @@ void SettingsActivity::render(RenderLock&&) {
           }
         } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
           valueText = std::to_string(SETTINGS.*(setting.valuePtr));
+        } else if (setting.type == SettingType::TIMEZONE) {
+          char name[TimeZoneCatalog::kMaxIdLength];
+          TimeZoneCatalog::formatDisplayName(SETTINGS.timeZoneId, name, sizeof(name));
+          valueText = name;
         }
         return valueText;
       },

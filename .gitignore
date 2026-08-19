@@ -1,6 +1,7 @@
 .pio
 .idea
 .DS_Store
+._*
 .vscode
 /.dir-locals.el
 /.projectile
