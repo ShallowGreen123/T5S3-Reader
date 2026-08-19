@@ -2,6 +2,7 @@
 
 #include <Board.h>
 #include <Logging.h>
+#include <TimeZoneCatalog.h>
 #include <Wire.h>
 #include <sys/time.h>
 #include <time.h>
@@ -13,20 +14,6 @@ constexpr uint8_t kRtcAddress = BoardPins::RtcAddress;
 constexpr uint8_t kRegisterCount = 7;
 constexpr time_t kUsableSystemTimeEpoch = 946684800;   // 2000-01-01 00:00:00 UTC
 constexpr time_t kValidSystemTimeEpoch = 1704067200;  // 2024-01-01 00:00:00 UTC
-constexpr const char* kTimeZoneRules[HalClock::TIME_ZONE_COUNT] = {
-    "UTC0",
-    "CST-8",
-    "GMT0BST,M3.5.0/1,M10.5.0/2",
-    "CET-1CEST,M3.5.0/2,M10.5.0/3",
-    "EET-2EEST,M3.5.0/3,M10.5.0/4",
-    "EST5EDT,M3.2.0/2,M11.1.0/2",
-    "CST6CDT,M3.2.0/2,M11.1.0/2",
-    "MST7MDT,M3.2.0/2,M11.1.0/2",
-    "MST7",
-    "PST8PDT,M3.2.0/2,M11.1.0/2",
-    "AKST9AKDT,M3.2.0/2,M11.1.0/2",
-    "HST10",
-};
 
 uint8_t bcdToDec(const uint8_t bcd) { return static_cast<uint8_t>(((bcd >> 4) * 10) + (bcd & 0x0F)); }
 
@@ -97,9 +84,9 @@ void HalClock::begin() {
   }
 }
 
-void HalClock::configure(const uint8_t timeZone, const bool rtcStoresUtc, const uint8_t rtcVariantHint,
+void HalClock::configure(const char* timeZoneId, const bool rtcStoresUtc, const uint8_t rtcVariantHint,
                          const uint32_t rtcReferenceEpoch) {
-  timeZone_ = timeZone < TIME_ZONE_COUNT ? timeZone : TIME_ZONE_UTC;
+  posixRule_ = TimeZoneCatalog::posixRule(timeZoneId);
   rtcStoresUtc_ = rtcStoresUtc;
   rtcReferenceEpoch_ = rtcReferenceEpoch;
   const ChipVariant hintedVariant = chipVariantFromHint(rtcVariantHint);
@@ -479,7 +466,6 @@ time_t HalClock::makeLocalEpoch(const DateTime& dateTime) {
 }
 
 void HalClock::applyTimeZone() const {
-  const uint8_t index = timeZone_ < TIME_ZONE_COUNT ? timeZone_ : TIME_ZONE_UTC;
-  setenv("TZ", kTimeZoneRules[index], 1);
+  setenv("TZ", posixRule_ != nullptr ? posixRule_ : "UTC0", 1);
   tzset();
 }

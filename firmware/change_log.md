@@ -21,7 +21,8 @@ v1.0.3
 - Add the `Recent Book` option. Long press to remove a single book. You can also choose to automatically remove it after finishing reading. 
 
 - Add the main page clock, read the page status bar clock, and set it through `Settings -> Reader -> Customise Status Bar`
-    - Go to `Settings > System > Time Zone` and select the current region.
+- Time Zone is now a region → city picker with the full IANA city list (legacy numeric settings migrate automatically).
+    - Go to `Settings > System > Time Zone`, choose a region, then a city.
     - Go to `WiFi Networks` and connect to the network once. Let it automatically perform NTP time synchronization and write the RTC data.
 
 If the time is reset after being reinitialized, an operation that does not 

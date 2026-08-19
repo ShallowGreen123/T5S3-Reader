@@ -351,10 +351,10 @@ void setup() {
   HalSystem::checkPanic();
 
   SETTINGS.loadFromFile();
-  LOG_DBG("MAIN", "Clock settings: tz=%u rtcStoresUtc=%u rtcVariantHint=%u rtcReferenceEpoch=%lu",
-          static_cast<unsigned>(SETTINGS.timeZone), static_cast<unsigned>(SETTINGS.rtcStoresUtc),
+  LOG_DBG("MAIN", "Clock settings: tz=%s rtcStoresUtc=%u rtcVariantHint=%u rtcReferenceEpoch=%lu",
+          SETTINGS.timeZoneId, static_cast<unsigned>(SETTINGS.rtcStoresUtc),
           static_cast<unsigned>(SETTINGS.rtcVariantHint), static_cast<unsigned long>(SETTINGS.rtcReferenceEpoch));
-  halClock.configure(SETTINGS.timeZone, SETTINGS.rtcStoresUtc != 0, SETTINGS.rtcVariantHint, SETTINGS.rtcReferenceEpoch);
+  halClock.configure(SETTINGS.timeZoneId, SETTINGS.rtcStoresUtc != 0, SETTINGS.rtcVariantHint, SETTINGS.rtcReferenceEpoch);
   if (!halClock.syncSystemTimeFromRtc()) {
     LOG_DBG("MAIN", "RTC time unavailable or invalid at boot");
   } else if (SETTINGS.rtcStoresUtc != static_cast<uint8_t>(halClock.getRtcStoresUtc())) {
