@@ -36,6 +36,7 @@ class EpubReaderActivity final : public Activity {
   bool automaticPageTurnActive = false;
   bool showBookmarkMessage = false;
   bool ignoreNextConfirmRelease = false;
+  bool finishedBook = false;
   bool bookmarkRemoved = false;
   std::vector<BookmarkEntry> cachedBookmarks;
   unsigned long bookmarkMessageTime = 0UL;
@@ -67,7 +68,8 @@ class EpubReaderActivity final : public Activity {
   void loadCachedBookmarks();
   bool isCurrentPageBookmarked() const;
   void addBookmark();
-  void maybeAutoRemoveFromRecents() const;
+  void maybeAutoRemoveFromRecents();
+  void moveFinishedBookToReadFolder();
 
   // Footnote navigation
   void navigateToHref(const std::string& href, bool savePosition = false);
