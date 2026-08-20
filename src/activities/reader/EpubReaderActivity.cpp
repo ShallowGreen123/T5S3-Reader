@@ -12,6 +12,7 @@
 #include <esp_system.h>
 
 #include <algorithm>
+#include <functional>
 #include <iterator>
 #include <limits>
 
@@ -42,6 +43,31 @@ constexpr int PAGE_TURN_RATES[] = {1, 1, 3, 6, 12};
 constexpr size_t initialBookmarkCacheCapacity = 16;
 constexpr float bookmarkProgressEpsilon = 0.0001f;
 constexpr char UTF8_ELLIPSIS[] = "\xE2\x80\xA6";
+constexpr char READ_FOLDER[] = "/Read";
+
+bool isInReadFolder(const std::string& path) {
+  constexpr size_t folderLength = sizeof(READ_FOLDER) - 1;
+  return path.size() > folderLength && path.compare(0, folderLength, READ_FOLDER) == 0 &&
+         path[folderLength] == '/';
+}
+
+std::string buildReadFolderDestination(const std::string& sourcePath) {
+  const size_t slash = sourcePath.find_last_of('/');
+  const std::string filename = slash == std::string::npos ? sourcePath : sourcePath.substr(slash + 1);
+  Storage.mkdir(READ_FOLDER);
+
+  std::string destination = std::string(READ_FOLDER) + "/" + filename;
+  if (!Storage.exists(destination.c_str())) return destination;
+
+  const size_t dot = filename.find_last_of('.');
+  const std::string base = dot == std::string::npos ? filename : filename.substr(0, dot);
+  const std::string extension = dot == std::string::npos ? "" : filename.substr(dot);
+  for (int suffix = 2; suffix < 100; ++suffix) {
+    destination = std::string(READ_FOLDER) + "/" + base + " (" + std::to_string(suffix) + ")" + extension;
+    if (!Storage.exists(destination.c_str())) return destination;
+  }
+  return {};
+}
 
 int clampPercent(int percent) {
   if (percent < 0) {
@@ -174,6 +200,7 @@ void EpubReaderActivity::onExit() {
   APP_STATE.readerActivityLoadCount = 0;
   APP_STATE.saveToFile();
   section.reset();
+  moveFinishedBookToReadFolder();
   epub.reset();
 }
 
@@ -1212,9 +1239,36 @@ bool EpubReaderActivity::isCurrentPageBookmarked() const {
   });
 }
 
-void EpubReaderActivity::maybeAutoRemoveFromRecents() const {
-  if (SETTINGS.autoRemoveFinishedRecentBooks && epub) {
+void EpubReaderActivity::maybeAutoRemoveFromRecents() {
+  if (epub && currentSpineIndex >= epub->getSpineItemsCount()) {
+    finishedBook = true;
+  }
+  if (finishedBook && SETTINGS.autoRemoveFinishedRecentBooks && epub) {
     RECENT_BOOKS.removeBook(epub->getPath());
+  }
+}
+
+void EpubReaderActivity::moveFinishedBookToReadFolder() {
+  if (!finishedBook || !SETTINGS.moveFinishedToReadFolder || !epub) return;
+
+  const std::string sourcePath = epub->getPath();
+  if (isInReadFolder(sourcePath)) return;
+
+  const std::string destination = buildReadFolderDestination(sourcePath);
+  if (destination.empty() || !Storage.rename(sourcePath.c_str(), destination.c_str())) {
+    LOG_ERR("ERS", "Failed to move finished EPUB to /Read: %s", sourcePath.c_str());
+    return;
+  }
+
+  const std::string oldCachePath = epub->getCachePath();
+  const std::string newCachePath = "/.crosspoint/epub_" + std::to_string(std::hash<std::string>{}(destination));
+  if (Storage.exists(oldCachePath.c_str()) && !Storage.rename(oldCachePath.c_str(), newCachePath.c_str())) {
+    LOG_ERR("ERS", "Failed to move EPUB cache directory: %s", oldCachePath.c_str());
+  }
+  RECENT_BOOKS.updatePath(sourcePath, destination, oldCachePath, newCachePath);
+  if (APP_STATE.openEpubPath == sourcePath) {
+    APP_STATE.openEpubPath = destination;
+    APP_STATE.saveToFile();
   }
 }
 
