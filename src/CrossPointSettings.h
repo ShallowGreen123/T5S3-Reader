@@ -267,6 +267,8 @@ class CrossPointSettings {
   uint8_t showHiddenFiles = 0;
   // Remove a book from the recent list once reading reaches the end.
   uint8_t autoRemoveFinishedRecentBooks = 0;
+  // Move finished EPUBs into /Read/ instead of leaving them in their original folder.
+  uint8_t moveFinishedToReadFolder = 0;
   // Prompt for confirmation before powering off from the reader menu (1 = prompt, 0 = off immediately)
   uint8_t confirmShutdown = 0;
   // Open the global drag-down menu with a double-click of the home button.

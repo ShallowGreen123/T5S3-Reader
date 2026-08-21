@@ -39,6 +39,9 @@ class RecentBooksStore {
 
   bool removeBook(const std::string& path);
 
+  void updatePath(const std::string& oldPath, const std::string& newPath, const std::string& oldCachePath,
+                  const std::string& newCachePath);
+
   // Get the list of recent books (most recent first)
   const std::vector<RecentBook>& getBooks() const { return recentBooks; }
 
