@@ -211,6 +211,8 @@ void EpubReaderActivity::loop() {
     return;
   }
 
+  updateRecentsForEndOfBook();
+
   if (automaticPageTurnActive) {
     if (mappedInput.wasReleased(MappedInputManager::Button::Confirm) ||
         mappedInput.wasReleased(MappedInputManager::Button::Back)) {
@@ -706,7 +708,6 @@ void EpubReaderActivity::pageTurn(bool isForwardTurn) {
         currentSpineIndex++;
         section.reset();
       }
-      maybeAutoRemoveFromRecents();
     }
   } else {
     if (section->currentPage > 0) {
@@ -1239,12 +1240,24 @@ bool EpubReaderActivity::isCurrentPageBookmarked() const {
   });
 }
 
-void EpubReaderActivity::maybeAutoRemoveFromRecents() {
-  if (epub && currentSpineIndex >= epub->getSpineItemsCount()) {
+void EpubReaderActivity::updateRecentsForEndOfBook() {
+  if (!epub) return;
+
+  // Recomputed every tick (not just right after a forward page turn) so a book that is
+  // already at its last page when reopened - e.g. resumed straight to the end-of-book
+  // screen from Recents - is still detected and removed.
+  const bool atEndOfBook = currentSpineIndex > 0 && currentSpineIndex >= epub->getSpineItemsCount();
+  if (atEndOfBook) {
     finishedBook = true;
   }
-  if (finishedBook && SETTINGS.autoRemoveFinishedRecentBooks && epub) {
-    RECENT_BOOKS.removeBook(epub->getPath());
+
+  if (!SETTINGS.autoRemoveFinishedRecentBooks) return;
+
+  if (atEndOfBook && !recentsEntryRemoved) {
+    recentsEntryRemoved = RECENT_BOOKS.removeBook(epub->getPath());
+  } else if (!atEndOfBook && recentsEntryRemoved) {
+    RECENT_BOOKS.addBook(epub->getPath(), epub->getTitle(), epub->getAuthor(), epub->getThumbBmpPath());
+    recentsEntryRemoved = false;
   }
 }
 

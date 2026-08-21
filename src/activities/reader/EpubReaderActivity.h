@@ -38,6 +38,9 @@ class EpubReaderActivity final : public Activity {
   bool ignoreNextConfirmRelease = false;
   bool finishedBook = false;
   bool bookmarkRemoved = false;
+  // Tracks whether the current book has been removed from Recents for reaching the end;
+  // re-added if the reader navigates away from the end-of-book state.
+  bool recentsEntryRemoved = false;
   std::vector<BookmarkEntry> cachedBookmarks;
   unsigned long bookmarkMessageTime = 0UL;
 
@@ -68,7 +71,7 @@ class EpubReaderActivity final : public Activity {
   void loadCachedBookmarks();
   bool isCurrentPageBookmarked() const;
   void addBookmark();
-  void maybeAutoRemoveFromRecents();
+  void updateRecentsForEndOfBook();
   void moveFinishedBookToReadFolder();
 
   // Footnote navigation
