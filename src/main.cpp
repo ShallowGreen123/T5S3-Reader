@@ -31,7 +31,6 @@
 #include "activities/settings/SdFirmwareUpdateActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
-#include "images/Logo120.h"
 #include "util/ButtonNavigator.h"
 #include "util/ScreenshotUtil.h"
 
@@ -138,21 +137,6 @@ constexpr unsigned long kBootConfirmHoldMs = 700;
 constexpr unsigned long kPcaButtonPowerOffHoldMs = 2000;
 constexpr unsigned long kEpd47PowerOffHoldMs = 2000;
 
-void renderPowerOffScreen(const char* status) {
-  (void)status;  // Status line intentionally not shown on the power-off screen.
-  RenderLock lock;
-  const auto pageWidth = renderer.getScreenWidth();
-  const auto pageHeight = renderer.getScreenHeight();
-
-  renderer.setOrientation(GfxRenderer::Orientation::Portrait);
-  renderer.clearScreen();
-  renderer.drawImage(Logo120, (pageWidth - 120) / 2, (pageHeight - 120) / 2 - 30, 120, 120);
-  renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 + 40, "CrossPoint", true, EpdFontFamily::BOLD);
-  renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 102,
-                            gpio.deviceIsEpd47() ? "Press PWR to power on" : "Hold PWR to power on");
-  renderer.displayBuffer(HalDisplay::FULL_REFRESH);
-}
-
 // Verify power button press duration on wake-up from deep sleep
 // Pre-condition: isWakeupByPowerButton() == true
 void verifyPowerButtonDuration() {
@@ -248,21 +232,23 @@ void enterDeepSleepKeepingScreen(bool wakeOnTouch = true) {
 }
 
 void enterPowerOffKeepingScreen(const char* status) {
+  (void)status;  // Status line intentionally not shown; the sleep screen setting is used instead.
   {
     HalPowerManager::Lock powerLock;
     APP_STATE.lastSleepFromReader = activityManager.isReaderActivityInStack();
     APP_STATE.saveToFile();
-    display.deepSleep();
 
-    renderPowerOffScreen(status);
+    // Render the sleep screen before putting the display to sleep: deepSleep() also
+    // disconnects the SD card (Board::deinitForSleep), which the sleep screen may need
+    // to read (e.g. custom/cover images).
+    activityManager.goToSleep(/*poweringOff=*/true);
     Board::setBacklightLevel(0);
+    display.deepSleep();
     if (Board::capabilities().hasHardPowerOff) {
       if (Board::shutdownBatteryPower()) {
         delay(1500);
         LOG_DBG("MAIN", "Battery power shutdown returned; falling back to deep sleep");
       } else {
-        renderPowerOffScreen("Entering sleep mode...");
-        Board::setBacklightLevel(0);
         LOG_ERR("MAIN", "Battery power shutdown failed or was rejected; falling back to deep sleep");
       }
     } else {
@@ -610,27 +596,15 @@ void loop() {
   const unsigned long sleepTimeoutMs = SETTINGS.getSleepTimeoutMs();
   if (millis() - lastActivityTime >= sleepTimeoutMs) {
     if (gpio.isUsbConnected()) {
-      LOG_DBG("SLP", "Auto power-off skipped after %lu ms of inactivity because USB is connected", sleepTimeoutMs);
+      LOG_DBG("SLP", "Auto sleep skipped after %lu ms of inactivity because USB is connected", sleepTimeoutMs);
       lastActivityTime = millis();
     } else {
-      LOG_DBG("SLP", "Auto power-off triggered after %lu ms of inactivity", sleepTimeoutMs);
-      enterPowerOffKeepingScreen("Shutting down...");
-      // This should never be hit as the fallback path calls esp_deep_sleep_start
+      LOG_DBG("SLP", "Auto sleep triggered after %lu ms of inactivity", sleepTimeoutMs);
+      enterDeepSleep();
+      // This should never be hit as `enterDeepSleep` calls esp_deep_sleep_start
       return;
     }
   }
-
-  // if (millis() > 5000 && gpio.isPressed(HalGPIO::BTN_POWER) &&
-  //     gpio.getHeldTime() > SETTINGS.getPowerButtonDuration()) {
-  //   // If the screenshot combination is potentially being pressed, don't sleep
-  //   if (gpio.isPressed(HalGPIO::BTN_DOWN)) {
-  //     return;
-  //   }
-  //   LOG_DBG("MAIN", "Power button sleep request, held=%lu ms", gpio.getHeldTime());
-  //   enterDeepSleep();
-  //   // This should never be hit as `enterDeepSleep` calls esp_deep_sleep_start
-  //   return;
-  // }
 
   // Refresh the battery icon when USB is plugged or unplugged.
   // Placed after sleep guards so we never queue a render that won't be processed.
