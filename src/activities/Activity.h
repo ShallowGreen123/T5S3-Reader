@@ -33,6 +33,7 @@ class Activity {
   virtual void onExit();
   virtual void loop() {}
   virtual bool onTouchTap(int16_t x, int16_t y) { return false; }
+  virtual bool onTouchSwipe(int16_t startX, int16_t startY, int16_t endX, int16_t endY) { return false; }
   // Return true to consume a home-button press before the default go-home / global-menu
   // handling runs (e.g. the global menu dismisses itself instead of navigating home).
   virtual bool onTouchHomeButton() { return false; }

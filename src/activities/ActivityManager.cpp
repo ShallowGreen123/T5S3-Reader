@@ -66,16 +66,15 @@ void ActivityManager::loop() {
     bool activityHandled = false;
     const bool globalMenuAllowed = currentActivity->supportsGlobalMenu();
 
-    // Global gesture: a drag down from the very top edge opens the global menu overlay.
-    if (globalMenuAllowed) {
-      MappedInputManager::TouchPoint swipeStart{}, swipeEnd{};
-      if (mappedInput.getTouchSwipe(swipeStart, swipeEnd, renderer)) {
-        constexpr int kTopBand = 60;  // gesture must start near the top edge
-        constexpr int kDragMin = 70;  // and travel down at least this far
-        if (swipeStart.y < kTopBand && (swipeEnd.y - swipeStart.y) >= kDragMin) {
-          openGlobalMenu();
-          activityHandled = true;
-        }
+    MappedInputManager::TouchPoint swipeStart{}, swipeEnd{};
+    if (mappedInput.getTouchSwipe(swipeStart, swipeEnd, renderer)) {
+      constexpr int kTopBand = 60;
+      constexpr int kDragMin = 70;
+      if (globalMenuAllowed && swipeStart.y < kTopBand && (swipeEnd.y - swipeStart.y) >= kDragMin) {
+        openGlobalMenu();
+        activityHandled = true;
+      } else {
+        activityHandled = currentActivity->onTouchSwipe(swipeStart.x, swipeStart.y, swipeEnd.x, swipeEnd.y);
       }
     }
 
