@@ -51,5 +51,6 @@ class FileBrowserActivity final : public Activity {
   void onExit() override;
   void loop() override;
   bool onTouchTap(int16_t x, int16_t y) override;
+  bool onTouchSwipe(int16_t startX, int16_t startY, int16_t endX, int16_t endY) override;
   void render(RenderLock&&) override;
 };

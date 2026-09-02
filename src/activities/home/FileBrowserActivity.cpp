@@ -318,6 +318,25 @@ bool FileBrowserActivity::onTouchTap(int16_t, int16_t y) {
   return true;
 }
 
+bool FileBrowserActivity::onTouchSwipe(int16_t, int16_t startY, int16_t, int16_t endY) {
+  constexpr int kVerticalSwipeMinimum = 70;
+  const int verticalDistance = static_cast<int>(endY) - startY;
+  if (std::abs(verticalDistance) < kVerticalSwipeMinimum || files.empty()) {
+    return false;
+  }
+
+  const int pathReserved =
+      BaseTheme::getLineHeightForRole(renderer, SMALL_FONT_ID, TextRole::UserContent) +
+      UITheme::getInstance().getMetrics().verticalSpacing;
+  const int pageItems = UITheme::getNumberOfItemsPerPage(renderer, true, false, true, false, pathReserved);
+  const int listSize = static_cast<int>(files.size());
+  selectorIndex = verticalDistance < 0
+                      ? ButtonNavigator::nextPageIndex(static_cast<int>(selectorIndex), listSize, pageItems)
+                      : ButtonNavigator::previousPageIndex(static_cast<int>(selectorIndex), listSize, pageItems);
+  requestUpdate();
+  return true;
+}
+
 std::string getFileName(std::string filename) {
   if (filename.back() == '/') {
     filename.pop_back();
