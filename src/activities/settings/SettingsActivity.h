@@ -9,7 +9,7 @@
 #include "activities/Activity.h"
 #include "util/ButtonNavigator.h"
 
-enum class SettingType { TOGGLE, ENUM, ACTION, VALUE, STRING };
+enum class SettingType { TOGGLE, ENUM, ACTION, VALUE, STRING, TIMEZONE };
 
 enum class SettingAction {
   None,
@@ -126,6 +126,13 @@ struct SettingInfo {
     s.valueSetter = std::move(setter);
     s.key = key;
     s.category = category;
+    return s;
+  }
+
+  static SettingInfo TimeZone(StrId nameId, char* ptr, size_t maxLen, const char* key = nullptr,
+                              StrId category = StrId::STR_NONE_OPT) {
+    SettingInfo s = String(nameId, ptr, maxLen, key, category);
+    s.type = SettingType::TIMEZONE;
     return s;
   }
 

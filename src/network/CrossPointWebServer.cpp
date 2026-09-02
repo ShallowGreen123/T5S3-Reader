@@ -7,11 +7,14 @@
 #include <HalClock.h>
 #include <HalStorage.h>
 #include <Logging.h>
+#include <TimeZoneCatalog.h>
 #include <WiFi.h>
 #include <esp_task_wdt.h>
 #include <sys/time.h>
 
 #include <algorithm>
+#include <cstdio>
+#include <cstring>
 
 #include "ClockSync.h"
 #include "CrossPointSettings.h"
@@ -244,6 +247,7 @@ void CrossPointWebServer::begin() {
   server->on("/settings", HTTP_GET, [this] { handleSettingsPage(); });
   server->on("/api/settings", HTTP_GET, [this] { handleGetSettings(); });
   server->on("/api/settings", HTTP_POST, [this] { handlePostSettings(); });
+  server->on("/api/timezones", HTTP_GET, [this] { handleGetTimeZones(); });
   server->on("/api/clock/sync", HTTP_POST, [this] { handleClockSync(); });
   server->on("/fonts", HTTP_GET, [this] { handleFontsPage(); });
   server->on("/api/fonts", HTTP_GET, [this] { handleFontList(); });
@@ -1261,6 +1265,13 @@ void CrossPointWebServer::handleGetSettings() const {
         }
         break;
       }
+      case SettingType::TIMEZONE: {
+        doc["type"] = "timezone";
+        if (s.stringMaxLen > 0) {
+          doc["value"] = reinterpret_cast<const char*>(&SETTINGS) + s.stringOffset;
+        }
+        break;
+      }
       default:
         continue;
     }
@@ -1301,6 +1312,7 @@ void CrossPointWebServer::handlePostSettings() {
   const auto& settings = getSettingsList(&sdFontSystem.registry());
   int applied = 0;
   bool backlightChanged = false;
+  bool timeZoneChanged = false;
 
   for (const auto& s : settings) {
     if (!s.key) continue;
@@ -1354,6 +1366,15 @@ void CrossPointWebServer::handlePostSettings() {
         applied++;
         break;
       }
+      case SettingType::TIMEZONE: {
+        const std::string val = doc[s.key].as<std::string>();
+        if (s.stringMaxLen > 0 && TimeZoneCatalog::isValidId(val.c_str())) {
+          TimeZoneCatalog::copyId(SETTINGS.timeZoneId, sizeof(SETTINGS.timeZoneId), val.c_str());
+          applied++;
+          timeZoneChanged = true;
+        }
+        break;
+      }
       default:
         break;
     }
@@ -1362,11 +1383,51 @@ void CrossPointWebServer::handlePostSettings() {
   if (backlightChanged) {
     Board::setBacklightLevel(SETTINGS.backlightLevel);
   }
+  if (timeZoneChanged) {
+    halClock.configure(SETTINGS.timeZoneId, SETTINGS.rtcStoresUtc != 0, SETTINGS.rtcVariantHint,
+                       SETTINGS.rtcReferenceEpoch);
+    (void)halClock.syncSystemTimeFromRtc();
+    SETTINGS.rtcStoresUtc = halClock.getRtcStoresUtc() ? 1 : 0;
+  }
 
   SETTINGS.saveToFile();
 
   LOG_DBG("WEB", "Applied %d setting(s)", applied);
   server->send(200, "text/plain", String("Applied ") + String(applied) + " setting(s)");
+}
+
+void CrossPointWebServer::handleGetTimeZones() const {
+  server->setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server->send(200, "application/json", "");
+  server->sendContent("{\"regions\":[");
+
+  char buf[160];
+  char cityName[TimeZoneCatalog::kMaxIdLength];
+  bool firstRegion = true;
+  for (uint8_t regionIndex = 0; regionIndex < static_cast<uint8_t>(TimeZoneRegion::Count); ++regionIndex) {
+    const auto region = static_cast<TimeZoneRegion>(regionIndex);
+    const uint16_t cityCount = TimeZoneCatalog::countInRegion(region);
+    if (cityCount == 0) {
+      continue;
+    }
+
+    snprintf(buf, sizeof(buf), "%s{\"id\":\"%s\",\"name\":\"%s\",\"cities\":[", firstRegion ? "" : ",",
+             TimeZoneCatalog::regionId(region), TimeZoneCatalog::regionDisplayName(region));
+    server->sendContent(buf);
+    firstRegion = false;
+
+    for (uint16_t cityIndex = 0; cityIndex < cityCount; ++cityIndex) {
+      const auto& entry = TimeZoneCatalog::get(TimeZoneCatalog::indexInRegion(region, cityIndex));
+      TimeZoneCatalog::formatDisplayName(entry.id, cityName, sizeof(cityName));
+      snprintf(buf, sizeof(buf), "%s{\"id\":\"%s\",\"name\":\"%s\"}", cityIndex == 0 ? "" : ",", entry.id, cityName);
+      server->sendContent(buf);
+    }
+    server->sendContent("]}");
+  }
+
+  server->sendContent("]}");
+  server->sendContent("");
+  LOG_DBG("WEB", "Served timezone catalog");
 }
 
 void CrossPointWebServer::handleClockSync() {

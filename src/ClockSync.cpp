@@ -86,7 +86,7 @@ bool commitCurrentSystemTime(const char* sourceTag) {
     }
   }
 
-  halClock.configure(SETTINGS.timeZone, true, SETTINGS.rtcVariantHint, SETTINGS.rtcReferenceEpoch);
+  halClock.configure(SETTINGS.timeZoneId, true, SETTINGS.rtcVariantHint, SETTINGS.rtcReferenceEpoch);
   LOG_DBG("CLK", "%s time synced and RTC updated", sourceTag != nullptr ? sourceTag : "System");
   return true;
 }
