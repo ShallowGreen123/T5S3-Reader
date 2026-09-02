@@ -238,6 +238,11 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap) const {
   renderer.displayBuffer(HalDisplay::HALF_REFRESH);
 
   if (hasGreyscale) {
+    if (!renderer.captureGrayscaleBaseBuffer()) {
+      LOG_ERR("SLP", "Failed to capture BW cover for grayscale rendering");
+      return;
+    }
+
     bitmap.rewindToData();
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
