@@ -132,6 +132,7 @@ The Settings screen allows you to configure the device's behavior. There are a f
   - "Cover" - The book cover image (Note: this is experimental and may not work as expected)
   - "None" - A blank screen
   - "Cover + Custom" - The book cover image, falls back to "Custom" behavior
+  - "Keep Last Page" - Leave whatever is currently on screen (no sleep artwork redraw)
 - **Sleep Screen Cover Mode**: How to display the book cover when "Cover" sleep screen is selected:
   - "Fit" (default) - Scale the image down to fit centered on the screen, padding with white borders as necessary
   - "Crop" - Scale the image down and crop as necessary to try to fill the screen (Note: this is experimental and may not work as expected)
@@ -353,6 +354,7 @@ The **Sleep Screen** setting controls what is displayed when the device goes to 
 | **Cover** | The cover of the currently open book. Falls back to **Dark** if no book is open. |
 | **Cover + Custom** | The cover of the currently open book. Falls back to **Custom** behavior if no book is open. |
 | **None** | A blank screen. |
+| **Keep Last Page** | Leaves the current display content unchanged (no logo, cover, or blank redraw). |
 
 #### Cover settings
 
