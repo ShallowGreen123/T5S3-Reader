@@ -19,6 +19,12 @@
 void SleepActivity::onEnter() {
   Activity::onEnter();
 
+  // KEEP_LAST is handled in main before goToSleep(); if we still land here, leave the
+  // framebuffer untouched (do not draw the entering-sleep popup).
+  if (activeScreenMode() == CrossPointSettings::SLEEP_SCREEN_MODE::KEEP_LAST) {
+    return;
+  }
+
   const char* popupText = poweringOff ? tr(STR_SHUTTING_DOWN) : tr(STR_ENTERING_SLEEP);
 
   // Show popup with reader orientation only when going to sleep from reader

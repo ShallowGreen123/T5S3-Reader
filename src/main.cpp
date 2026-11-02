@@ -196,11 +196,29 @@ bool shouldSuppressDeepSleepForDebug() {
 #endif
 }
 
+void enterDeepSleepKeepingScreen(bool wakeOnTouch = true) {
+  HalPowerManager::Lock powerLock;
+  APP_STATE.lastSleepFromReader = APP_STATE.lastSleepFromReader || activityManager.isReaderActivityInStack();
+  APP_STATE.saveToFile();
+
+  Board::setBacklightLevel(0);
+  halTiltSensor.deepSleep();
+  display.deepSleep();
+  LOG_DBG("MAIN", "Entering deep sleep with current screen preserved, wakeOnTouch=%d", wakeOnTouch ? 1 : 0);
+
+  powerManager.startDeepSleep(gpio, wakeOnTouch);
+}
+
 // Enter deep sleep mode
 void enterDeepSleep() {
   if (shouldSuppressDeepSleepForDebug()) {
     LOG_DBG("MAIN", "Deep sleep suppressed while serial is connected");
     waitForPowerRelease();
+    return;
+  }
+
+  if (SETTINGS.sleepScreen == CrossPointSettings::SLEEP_SCREEN_MODE::KEEP_LAST) {
+    enterDeepSleepKeepingScreen(true);
     return;
   }
 
@@ -218,19 +236,6 @@ void enterDeepSleep() {
   powerManager.startDeepSleep(gpio);
 }
 
-void enterDeepSleepKeepingScreen(bool wakeOnTouch = true) {
-  HalPowerManager::Lock powerLock;
-  APP_STATE.lastSleepFromReader = APP_STATE.lastSleepFromReader || activityManager.isReaderActivityInStack();
-  APP_STATE.saveToFile();
-
-  Board::setBacklightLevel(0);
-  halTiltSensor.deepSleep();
-  display.deepSleep();
-  LOG_DBG("MAIN", "Entering deep sleep with current screen preserved, wakeOnTouch=%d", wakeOnTouch ? 1 : 0);
-
-  powerManager.startDeepSleep(gpio, wakeOnTouch);
-}
-
 void enterPowerOffKeepingScreen(const char* status) {
   (void)status;  // Status line intentionally not shown; the sleep screen setting is used instead.
   {
@@ -238,10 +243,12 @@ void enterPowerOffKeepingScreen(const char* status) {
     APP_STATE.lastSleepFromReader = activityManager.isReaderActivityInStack();
     APP_STATE.saveToFile();
 
-    // Render the sleep screen before putting the display to sleep: deepSleep() also
-    // disconnects the SD card (Board::deinitForSleep), which the sleep screen may need
-    // to read (e.g. custom/cover images).
-    activityManager.goToSleep(/*poweringOff=*/true);
+    // KEEP_LAST leaves the current framebuffer as-is. Other modes render a sleep/power-off
+    // screen first because display.deepSleep() also disconnects the SD card
+    // (Board::deinitForSleep), which custom/cover images may need to read.
+    if (SETTINGS.powerOffScreen != CrossPointSettings::SLEEP_SCREEN_MODE::KEEP_LAST) {
+      activityManager.goToSleep(/*poweringOff=*/true);
+    }
     Board::setBacklightLevel(0);
     display.deepSleep();
     if (Board::capabilities().hasHardPowerOff) {
